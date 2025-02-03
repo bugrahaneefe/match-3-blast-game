@@ -32,7 +32,7 @@ public class BoardManager : MonoBehaviour
     void ValidateGridSize()
     {
         width = Mathf.Clamp(width, 5, 12);
-        height = Mathf.Clamp(height,5, 12);
+        height = Mathf.Clamp(height, 5, 12);
     }
     #endregion
 
@@ -42,7 +42,6 @@ public class BoardManager : MonoBehaviour
         if (boardRenderer != null)
         {
             boardRenderer.size = new Vector2(width + 0.2f, height + 0.4f);
-            boardRenderer.transform.position = new Vector3(0, -1, 1);
         }
     }
     #endregion
@@ -50,7 +49,6 @@ public class BoardManager : MonoBehaviour
     #region Generate Blocks
     void GenerateBlocks()
     {
-
         blockBoard = new Node[width, height];
 
         spacingX = (float)(width - 1) / 2;
@@ -63,8 +61,12 @@ public class BoardManager : MonoBehaviour
                 Vector2 position = new Vector2(x - spacingX, y - spacingY);
 
                 int randomIndex = Random.Range(0, blockPrefabs.Length);
-
                 GameObject block = Instantiate(blockPrefabs[randomIndex], position, Quaternion.identity);
+
+                // **Z değerini ayarla: En üstteki bloklar önde olacak şekilde**
+                float zPosition = -(float)y / height; // Üst satır küçük Z, alt satır büyük Z
+
+                block.transform.position = new Vector3(position.x, position.y, zPosition);
                 block.GetComponent<Block>().SetIndicies(x, y);
                 blockBoard[x, y] = new Node(block);
             }
