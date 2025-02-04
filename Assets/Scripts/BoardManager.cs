@@ -1,6 +1,15 @@
 using UnityEngine;
 using System.Collections.Generic;
 using System.Collections;
+using TMPro;
+using UnityEngine.UIElements;
+
+public enum GameCondition
+{
+    GameOver,
+    LevelPassed,
+    OnGoing
+}
 
 public class BoardManager : MonoBehaviour
 {
@@ -9,11 +18,17 @@ public class BoardManager : MonoBehaviour
     public Node[,] blockBoard;
     public GameObject particlePrefabA;
     public GameObject particlePrefabB;
+    public TMP_Text moveText;
     public int width = 9;
     public int height = 9;
     public float spacingX;
     public float spacingY;
+    public UIDocument UIDoc;
+    private VisualElement m_GamePanel;
+    private Label m_MessageLabel;  
     private SpriteRenderer boardRenderer;
+    private int remainingMoves;
+    private GameCondition m_GameCondition;
 
     #region Singleton
     private void Awake()
@@ -24,10 +39,39 @@ public class BoardManager : MonoBehaviour
 
     private void Start()
     {
-        boardRenderer = GetComponent<SpriteRenderer>();
-        ValidateBoard();
-        GenerateBlocks();
-        CenterCamera();
+        m_GameCondition = GameCondition.OnGoing;
+        m_GamePanel = UIDoc.rootVisualElement.Q<VisualElement>("ui_background");
+        m_MessageLabel = UIDoc.rootVisualElement.Q<Label>("ui_label");
+        m_GamePanel.style.visibility = Visibility.Hidden;
+
+        LevelManager.Instance.LoadLevel(1);
+    }
+
+    private void Update()
+    {
+        if (m_GameCondition == GameCondition.GameOver)
+        {
+            if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
+            {
+                //RestartLevel();
+            }
+
+            if (Input.GetMouseButtonDown(0))
+            {
+                //RestartLevel();
+            }
+
+            if (Input.GetKeyDown(KeyCode.Return))
+            {
+                RestartLevel();
+            }
+        }
+    }
+
+    private void UpdateMoveText()
+    {
+        if (moveText != null)
+            moveText.text = remainingMoves.ToString();
     }
 
     #region If mouse clicked on to block
@@ -40,11 +84,13 @@ public class BoardManager : MonoBehaviour
         // If match found remove the blocks
         if (connectedBlocks.Count >= 2)
         {
+            CheckRemainingMoves();
             RemoveBlocks(connectedBlocks);
         }
         else if (connectedBlocks.Count >= 5)
         {
             Debug.Log("Rocket implementation");
+            CheckRemainingMoves();
             RemoveBlocks(connectedBlocks);
         }
         // No match
@@ -52,11 +98,93 @@ public class BoardManager : MonoBehaviour
     }
     #endregion
 
+    private void CheckRemainingMoves()
+    {
+        if (remainingMoves > 0)
+        {
+            remainingMoves--;
+            UpdateMoveText();
+
+            if (remainingMoves == 0)
+            {
+                RestartPanelShowing();
+                return;
+            }
+        }
+    }
+
+    private void RestartPanelShowing()
+    {
+        m_MessageLabel.text = "You are out of moves!\nTap to restart.";
+        m_GamePanel.style.visibility = Visibility.Visible;
+
+        ClearBoard();
+
+        m_GameCondition = GameCondition.GameOver;
+    }
+
+    private void LevelCompletePanelShowing()
+    {
+        m_MessageLabel.text = "You completed the level!\nTap for next level.";
+        m_GamePanel.style.visibility = Visibility.Visible;
+
+        ClearBoard();
+
+        m_GameCondition = GameCondition.LevelPassed;
+    }
+
+    private void RestartLevel()
+    {
+        m_GameCondition = GameCondition.OnGoing;
+        m_GamePanel.style.visibility = Visibility.Hidden;
+        
+        int currentLevel = LevelManager.Instance.GetCurrentLevelNumber();
+        LevelManager.Instance.LoadLevel(currentLevel);
+    }
+
+    public void LoadLevelData(int levelNumber)
+    {
+        ClearBoard();
+        LevelData currentLevel = LevelManager.Instance.GetLevel(levelNumber);
+        Debug.Log($"Level {currentLevel.level_number} has {currentLevel.move_count} moves.");
+
+        width = currentLevel.grid_width;
+        height = currentLevel.grid_height;
+        remainingMoves = currentLevel.move_count;
+
+        UpdateMoveText();
+
+        boardRenderer = GetComponent<SpriteRenderer>();
+        ValidateBoard();
+        GenerateBlocks();
+        CenterCamera();
+
+        m_GameCondition = GameCondition.OnGoing;
+    }
+
+    private void ClearBoard()
+    {
+        if (blockBoard != null)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    if (blockBoard[x, y] != null && blockBoard[x, y].block != null)
+                    {
+                        Destroy(blockBoard[x, y].block);
+                        blockBoard[x, y] = null;
+                    }
+                }
+            }
+        }
+    }
+
     #region Set limit to block generation & handle board background 'border sprite'
     private void ValidateBoard()
     {
-        width = Mathf.Clamp(width, 5, 12);
-        height = Mathf.Clamp(height, 5, 12);
+        width = Mathf.Clamp(width, 4, 12);
+        height = Mathf.Clamp(height, 4, 12);
 
         if (boardRenderer != null)
         {
@@ -294,8 +422,11 @@ public class BoardManager : MonoBehaviour
             yield return new WaitForSeconds(0.3f);
         }
 
-        // Fall new blocks to emptied spaces
-        StartCoroutine(FallNewBlocks());
+        if (m_GameCondition == GameCondition.OnGoing) 
+        {
+            // Fall new blocks to emptied spaces
+            StartCoroutine(FallNewBlocks());
+        }
     }
     #endregion
 
