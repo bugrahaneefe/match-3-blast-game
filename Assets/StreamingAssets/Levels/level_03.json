@@ -2,5 +2,10 @@
        "level_number": 3,
        "grid_width": 8,
        "grid_height": 8,
-       "move_count": 8
+       "move_count": 8,
+       "red": 0,
+       "green": 2,
+       "yellow": 0,
+       "purple": 0,
+       "blue": 0
 }

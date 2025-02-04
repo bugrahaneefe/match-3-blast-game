@@ -29,6 +29,9 @@ public class BoardManager : MonoBehaviour
     private SpriteRenderer boardRenderer;
     private int remainingMoves;
     private GameCondition m_GameCondition;
+    
+    // ✅ Dictionary to store remaining goals
+    private Dictionary<BlockType, int> remainingGoals = new Dictionary<BlockType, int>();
 
     #region Singleton
     private void Awake()
@@ -66,6 +69,13 @@ public class BoardManager : MonoBehaviour
                 RestartLevel();
             }
         }
+        else if (m_GameCondition == GameCondition.LevelPassed)
+        {
+            if (Input.GetKeyDown(KeyCode.Return))
+            {
+                SetNextLevel();
+            }
+        }
     }
 
     private void UpdateMoveText()
@@ -84,17 +94,17 @@ public class BoardManager : MonoBehaviour
         // If match found remove the blocks
         if (connectedBlocks.Count >= 2)
         {
+            UpdateGoals(connectedBlocks); // ✅ Track goal completion
             CheckRemainingMoves();
             RemoveBlocks(connectedBlocks);
         }
         else if (connectedBlocks.Count >= 5)
         {
             Debug.Log("Rocket implementation");
+            UpdateGoals(connectedBlocks); // ✅ Track goal completion
             CheckRemainingMoves();
             RemoveBlocks(connectedBlocks);
         }
-        // No match
-        else { }
     }
     #endregion
 
@@ -119,7 +129,6 @@ public class BoardManager : MonoBehaviour
         m_GamePanel.style.visibility = Visibility.Visible;
 
         ClearBoard();
-
         m_GameCondition = GameCondition.GameOver;
     }
 
@@ -129,7 +138,6 @@ public class BoardManager : MonoBehaviour
         m_GamePanel.style.visibility = Visibility.Visible;
 
         ClearBoard();
-
         m_GameCondition = GameCondition.LevelPassed;
     }
 
@@ -138,6 +146,16 @@ public class BoardManager : MonoBehaviour
         m_GameCondition = GameCondition.OnGoing;
         m_GamePanel.style.visibility = Visibility.Hidden;
         
+        int currentLevel = LevelManager.Instance.GetCurrentLevelNumber();
+        LevelManager.Instance.LoadLevel(currentLevel);
+    }
+
+    private void SetNextLevel()
+    {
+        m_GameCondition = GameCondition.OnGoing;
+        m_GamePanel.style.visibility = Visibility.Hidden;
+        
+        LevelManager.Instance.SetCurrentLevelNumber(LevelManager.Instance.GetCurrentLevelNumber() + 1);
         int currentLevel = LevelManager.Instance.GetCurrentLevelNumber();
         LevelManager.Instance.LoadLevel(currentLevel);
     }
@@ -152,14 +170,49 @@ public class BoardManager : MonoBehaviour
         height = currentLevel.grid_height;
         remainingMoves = currentLevel.move_count;
 
-        UpdateMoveText();
+        // ✅ Load goals from level data
+        remainingGoals.Clear();
+        remainingGoals[BlockType.Red] = currentLevel.red;
+        remainingGoals[BlockType.Green] = currentLevel.green;
+        remainingGoals[BlockType.Yellow] = currentLevel.yellow;
+        remainingGoals[BlockType.Purple] = currentLevel.purple;
+        remainingGoals[BlockType.Blue] = currentLevel.blue;
 
+        UpdateMoveText();
         boardRenderer = GetComponent<SpriteRenderer>();
         ValidateBoard();
         GenerateBlocks();
         CenterCamera();
 
         m_GameCondition = GameCondition.OnGoing;
+    }
+
+    // ✅ Update goal completion
+    private void UpdateGoals(List<Block> blocks)
+    {
+        foreach (Block block in blocks)
+        {
+            if (remainingGoals.ContainsKey(block.blockType) && remainingGoals[block.blockType] > 0)
+            {
+                remainingGoals[block.blockType]--;
+            }
+        }
+
+        // ✅ Check if all goals are achieved
+        if (CheckAllGoalsCompleted())
+        {
+            LevelCompletePanelShowing();
+        }
+    }
+
+    private bool CheckAllGoalsCompleted()
+    {
+        foreach (var goal in remainingGoals.Values)
+        {
+            if (goal > 0)
+                return false; // Still goals left
+        }
+        return true; // ✅ All goals completed
     }
 
     private void ClearBoard()
