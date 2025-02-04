@@ -16,6 +16,7 @@ public class Block : MonoBehaviour
     public BlockType blockType;
     public int xIndex;
     public int yIndex;
+    public bool isFalling = false;
 
     public Block(int _x, int _y)
     {
@@ -42,6 +43,9 @@ public class Block : MonoBehaviour
     #region If block is clickable call HandleBlockClick from BoardManager
     private void OnMouseDown()
     {
+        // Prevent reaching block as it is falling
+        if (isFalling) return;
+
         Node node = BoardManager.Instance.blockBoard[xIndex, yIndex];
 
         if (node == null || !node.isClickable)

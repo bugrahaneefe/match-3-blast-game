@@ -1,11 +1,14 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System.Collections;
 
 public class BoardManager : MonoBehaviour
 {
     public static BoardManager Instance;
     public GameObject[] blockPrefabs;
     public Node[,] blockBoard;
+    public GameObject particlePrefabA;
+    public GameObject particlePrefabB;
     public int width = 9;
     public int height = 9;
     public float spacingX;
@@ -35,8 +38,13 @@ public class BoardManager : MonoBehaviour
         List<Block> connectedBlocks = GetConnectedBlocks(clickedBlock);
 
         // If match found remove the blocks
-        if (connectedBlocks.Count >= 2 && connectedBlocks.Count <= 5)
+        if (connectedBlocks.Count >= 2)
         {
+            RemoveBlocks(connectedBlocks);
+        }
+        else if (connectedBlocks.Count >= 5)
+        {
+            Debug.Log("Rocket implementation");
             RemoveBlocks(connectedBlocks);
         }
         // No match
@@ -49,9 +57,16 @@ public class BoardManager : MonoBehaviour
     {
         width = Mathf.Clamp(width, 5, 12);
         height = Mathf.Clamp(height, 5, 12);
+
         if (boardRenderer != null)
         {
-            boardRenderer.size = new Vector2(width + 0.2f, height + 0.4f);
+            // **Set size dynamically based on grid size**
+            boardRenderer.size = new Vector2(width, height);
+
+            // **Adjust background position to center it with the board**
+            float bgX = (float)(width - 1) / 2;
+            float bgY = (float)((height - 1) / 2) + 1;
+            boardRenderer.transform.position = new Vector3(0, -0.5f, 1); // Keep Z at 1 to stay behind the blocks
         }
     }
     #endregion
@@ -156,15 +171,232 @@ public class BoardManager : MonoBehaviour
     }
     #endregion
 
-    #region Removing blocks
+    #region Removing blocks & Apply fall implementations
     private void RemoveBlocks(List<Block> blocksToRemove)
     {
+        if (blocksToRemove.Count > 0)
+        {
+            SoundManager.Instance.PlayCubeExplode();  // ✅ Play sound via SoundManager
+        }
+
         foreach (Block b in blocksToRemove)
         {
             if (b == null) continue;
+            ExplosionAffecting(b);
             blockBoard[b.xIndex, b.yIndex] = null;
             Destroy(b.gameObject);
         }
+
+        StartCoroutine(FallExistingBlocks());
+    }
+    #endregion
+
+    #region Explosion effect for removed blocks
+    private void ExplosionAffecting(Block block)
+    {
+        if (block == null) return;
+
+        GameObject chosenPrefab = Random.value > 0.5f ? particlePrefabA : particlePrefabB;
+        GameObject explosion = Instantiate(chosenPrefab, block.transform.position, Quaternion.identity);
+        ParticleSystem particleSystem = explosion.GetComponent<ParticleSystem>();
+
+        if (particleSystem != null)
+        {
+            var main = particleSystem.main;  
+            SpriteRenderer blockRenderer = block.GetComponent<SpriteRenderer>();
+
+            if (blockRenderer != null)
+            {
+                // Color based on block type
+                switch (block.blockType)
+                {
+                    case BlockType.Red:     main.startColor = Color.red; break;
+                    case BlockType.Blue:    main.startColor = Color.blue; break;
+                    case BlockType.Purple:  main.startColor = new Color(0.74f, 0.56f, 0.94f); break;
+                    case BlockType.Green:   main.startColor = Color.green; break;
+                    case BlockType.Yellow:  main.startColor = Color.yellow; break;
+                    case BlockType.Balloon:    main.startColor = new Color(1.0f, 0.71f, 0.81f); break;
+                    case BlockType.Duck:    main.startColor = Color.gray; break;
+                    default: main.startColor = Color.white; break;
+                }
+            }
+
+            main.startSpeed = Random.Range(3f, 6f); 
+            main.gravityModifier = 1.5f;
+            var emission = particleSystem.emission;
+            emission.SetBurst(0, new ParticleSystem.Burst(0, Random.Range(5, 10)));  
+
+            StartCoroutine(RandomizeParticleSizes(particleSystem));
+        }
+
+        ParticleSystemRenderer renderer = explosion.GetComponent<ParticleSystemRenderer>();
+        if (renderer != null)
+        {
+            renderer.sortingLayerName = "Default";  
+            renderer.sortingOrder = 2;  
+        }
+
+        Destroy(explosion, 1.7f);
+    }
+
+    private IEnumerator RandomizeParticleSizes(ParticleSystem particleSystem)
+    {
+        yield return new WaitForSeconds(0.05f);
+
+        ParticleSystem.Particle[] particles = new ParticleSystem.Particle[particleSystem.main.maxParticles];
+        int count = particleSystem.GetParticles(particles);
+
+        for (int i = 0; i < count; i++)
+        {
+            particles[i].startSize = Random.Range(0.16f, 0.215f);
+        }
+
+        particleSystem.SetParticles(particles, count);
+    }
+    #endregion
+
+    #region Fall Implementation for existing blocks
+    private IEnumerator FallExistingBlocks()
+    {
+        bool hasFallingBlocks = false;
+
+        for (int x = 0; x < width; x++)
+        {
+            int writeIndex = 0;
+
+            for (int y = 0; y < height; y++)
+            {
+                if (blockBoard[x, y] != null)
+                {
+                    if (writeIndex != y)
+                    {
+                        blockBoard[x, writeIndex] = blockBoard[x, y];
+                        blockBoard[x, y] = null;
+
+                        Block block = blockBoard[x, writeIndex].block.GetComponent<Block>();
+                        float fallDistance = Mathf.Abs(y - writeIndex);
+
+                        block.SetIndicies(x, writeIndex);
+
+                        float finalY = writeIndex - spacingY;
+                        StartCoroutine(MoveBlockDown(block, finalY, fallDistance));
+
+                        hasFallingBlocks = true;
+                    }
+
+                    writeIndex++;
+                }
+            }
+        }
+
+        if (hasFallingBlocks)
+        {
+            yield return new WaitForSeconds(0.3f);
+        }
+
+        // Fall new blocks to emptied spaces
+        StartCoroutine(FallNewBlocks());
+    }
+    #endregion
+
+    #region Fall Implementation for new blocks
+    private IEnumerator FallNewBlocks()
+    {
+        bool hasNewBlocks = false;
+
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                if (blockBoard[x, y] == null)
+                {
+                    hasNewBlocks = true;
+                    int randomIndex = Random.Range(0, blockPrefabs.Length);
+                    GameObject blockObj = Instantiate(blockPrefabs[randomIndex]);
+
+                    blockObj.transform.SetParent(this.transform);
+
+                    float spawnY = height + 1;
+                    float finalY = y - spacingY;
+
+                    blockObj.transform.position = new Vector3(x - spacingX, spawnY, -(float)y / height);
+
+                    Block block = blockObj.GetComponent<Block>();
+                    block.SetIndicies(x, y);
+
+                    block.isFalling = true;
+
+                    blockBoard[x, y] = new Node(blockObj);
+
+                    StartCoroutine(MoveBlockDown(block, finalY, spawnY - finalY));
+                }
+            }
+        }
+
+        if (hasNewBlocks)
+        {
+            yield return new WaitForSeconds(0.3f);
+        }
+    }
+    #endregion
+
+    #region Make block fall down
+    private IEnumerator MoveBlockDown(Block block, float targetY, float fallDistance)
+    {
+        block.isFalling = true;
+
+        float fallSpeed = 4f;
+        Vector3 startPos = block.transform.position;
+        Vector3 targetPos = new Vector3(startPos.x, targetY, startPos.z);
+
+        float elapsedTime = 0f;
+        while (elapsedTime < 1f)
+        {
+            elapsedTime += Time.deltaTime * fallSpeed;
+            block.transform.position = Vector3.Lerp(startPos, targetPos, elapsedTime);
+            yield return null;
+        }
+
+        block.transform.position = targetPos;
+
+        float zPosition = -(float)block.yIndex / height;
+        block.transform.position = new Vector3(targetPos.x, targetPos.y, zPosition);
+
+        // Jump animation after landing
+        //yield return StartCoroutine(BlockJump(block, fallDistance));
+
+        block.isFalling = false;
+    }
+    #endregion
+
+    #region Jump animation
+    private IEnumerator BlockJump(Block block, float fallDistance)
+    {
+        if (fallDistance < 1) yield break;
+
+        float jumpHeight = Mathf.Clamp(fallDistance * 0.1f, 0.05f, 0.3f);
+        float jumpSpeed = 1f;
+
+        Vector3 originalPos = block.transform.position;
+        Vector3 peakPos = originalPos + new Vector3(0, jumpHeight, 0);
+
+        float elapsedTime = 0f;
+        while (elapsedTime < 0.15f)
+        {
+            elapsedTime += Time.deltaTime * jumpSpeed;
+            block.transform.position = Vector3.Lerp(originalPos, peakPos, elapsedTime);
+            yield return null;
+        }
+
+        elapsedTime = 0f;
+        while (elapsedTime < 0.15f)
+        {
+            elapsedTime += Time.deltaTime * jumpSpeed;
+            block.transform.position = Vector3.Lerp(peakPos, originalPos, elapsedTime);
+            yield return null;
+        }
+
+        block.transform.position = originalPos;
     }
     #endregion
 }
