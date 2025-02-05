@@ -3,10 +3,10 @@ using UnityEngine;
 public class SoundManager : MonoBehaviour
 {
     public static SoundManager Instance;
+    public AudioSource audioSource;
+    public AudioClip cubeExplodeSound;
 
-    public AudioSource audioSource;  // ✅ General AudioSource
-    public AudioClip cubeExplodeSound;  // ✅ Explosion sound (can add more later)
-
+    #region Singleton
     private void Awake()
     {
         if (Instance == null)
@@ -15,13 +15,14 @@ public class SoundManager : MonoBehaviour
         }
         else
         {
-            Destroy(gameObject);  // Prevent duplicates
+            Destroy(gameObject);
             return;
         }
 
-        DontDestroyOnLoad(gameObject);  // Keep sound manager across scenes
+        DontDestroyOnLoad(gameObject);
         audioSource = GetComponent<AudioSource>();
     }
+    #endregion
 
     public void PlaySound(AudioClip clip)
     {
