@@ -15,6 +15,12 @@ public class BoardManager : MonoBehaviour
 {
     public static BoardManager Instance;
     public GameObject[] blockPrefabs;
+    public Transform goalUIContainer;
+    public GameObject goalRedPrefab;
+    public GameObject goalBluePrefab;
+    public GameObject goalGreenPrefab;
+    public GameObject goalYellowPrefab;
+    public GameObject goalPurplePrefab;
     public Node[,] blockBoard;
     public GameObject particlePrefabA;
     public GameObject particlePrefabB;
@@ -32,6 +38,9 @@ public class BoardManager : MonoBehaviour
     
     // ✅ Dictionary to store remaining goals
     private Dictionary<BlockType, int> remainingGoals = new Dictionary<BlockType, int>();
+    private Dictionary<BlockType, GameObject> goalUIElements = new Dictionary<BlockType, GameObject>();
+    private Dictionary<BlockType, GameObject> goalPrefabs;
+
 
     #region Singleton
     private void Awake()
@@ -46,6 +55,16 @@ public class BoardManager : MonoBehaviour
         m_GamePanel = UIDoc.rootVisualElement.Q<VisualElement>("ui_background");
         m_MessageLabel = UIDoc.rootVisualElement.Q<Label>("ui_label");
         m_GamePanel.style.visibility = Visibility.Hidden;
+
+
+        goalPrefabs = new Dictionary<BlockType, GameObject>
+        {
+            { BlockType.Red, goalRedPrefab },
+            { BlockType.Blue, goalBluePrefab },
+            { BlockType.Green, goalGreenPrefab },
+            { BlockType.Yellow, goalYellowPrefab },
+            { BlockType.Purple, goalPurplePrefab }
+        };
 
         LevelManager.Instance.LoadLevel(1);
     }
@@ -185,20 +204,121 @@ public class BoardManager : MonoBehaviour
         CenterCamera();
 
         m_GameCondition = GameCondition.OnGoing;
-    }
 
-    // ✅ Update goal completion
-    private void UpdateGoals(List<Block> blocks)
+        SetupGoalUI();
+    }
+    
+    #region ✅ Setup Goal UI Dynamically
+    private void SetupGoalUI()
+    {
+        if (goalUIContainer == null)
+        {
+            Debug.LogError("❌ goalUIContainer is not assigned in the Unity Inspector!");
+            return;
+        }
+
+        // ✅ Clear Previous Goal UI Elements
+        foreach (Transform child in goalUIContainer)
+        {
+            Destroy(child.gameObject);
+        }
+
+        goalUIElements.Clear();
+
+        int goalCount = 0;
+        foreach (var goal in remainingGoals)
+        {
+            if (goal.Value > 0 && goalPrefabs.ContainsKey(goal.Key))
+            {
+                // ✅ Instantiate the Correct Goal Prefab
+                GameObject goalBlock = Instantiate(goalPrefabs[goal.Key], goalUIContainer);
+                goalUIElements[goal.Key] = goalBlock;
+
+                // ✅ Find goal_text Inside Prefab and Update It
+                TMP_Text goalText = goalBlock.transform.Find($"goal_{goal.Key.ToString().ToLower()}_text")?.GetComponent<TMP_Text>();
+                if (goalText != null)
+                {
+                    goalText.text = goal.Value.ToString();
+                }
+                else
+                {
+                    Debug.LogError($"❌ {goal.Key} prefab is missing goal_{goal.Key.ToString().ToLower()}_text!");
+                }
+
+                goalCount++;
+            }
+        }
+
+        AdjustGoalUISize(goalCount);
+    }
+    #endregion
+
+#region ✅ Adjust Goal UI Size Based on Number of Goals
+private void AdjustGoalUISize(int goalCount)
+{
+    foreach (var goalEntry in goalUIElements)
+    {
+        BlockType blockType = goalEntry.Key;
+        GameObject goal = goalEntry.Value;
+
+        if (goal == null)
+        {
+            Debug.LogError($"❌ Goal UI element for {blockType} is missing!");
+            continue;
+        }
+
+        RectTransform rect = goal.GetComponent<RectTransform>();
+        if (rect == null)
+        {
+            Debug.LogError($"❌ Missing RectTransform in goal UI for {blockType}!");
+            continue;
+        }
+
+        // ✅ Corrected text reference
+        string goalTextName = $"goal_{blockType.ToString().ToLower()}_text";
+        TMP_Text goalText = goal.transform.Find(goalTextName)?.GetComponent<TMP_Text>();
+
+        if (goalText == null)
+        {
+            Debug.LogError($"❌ {goalTextName} is missing in {blockType} goal prefab!");
+            continue;
+        }
+
+        // ✅ Resize UI based on goal count
+        if (goalCount > 3)
+        {
+            rect.sizeDelta = new Vector2(50, 50); // Reduce block size
+            goalText.fontSize = 18;              // Reduce font size
+        }
+        else
+        {
+            rect.sizeDelta = new Vector2(100, 100); // Default size
+            goalText.fontSize = 32;              // Default font size
+        }
+    }
+}
+#endregion
+
+
+    #region ✅ Update Goals When Blocks are Removed
+ private void UpdateGoals(List<Block> blocks)
     {
         foreach (Block block in blocks)
         {
             if (remainingGoals.ContainsKey(block.blockType) && remainingGoals[block.blockType] > 0)
             {
                 remainingGoals[block.blockType]--;
+
+                // ✅ Update UI Text
+                if (goalUIElements.ContainsKey(block.blockType))
+                {
+                    TMP_Text goalText = goalUIElements[block.blockType].transform.Find($"goal_{block.blockType.ToString().ToLower()}_text").GetComponent<TMP_Text>();
+                    goalText.text = remainingGoals[block.blockType].ToString();
+                }
             }
         }
 
-        // ✅ Check if all goals are achieved
+        // ✅ Check if All Goals Are Met
         if (CheckAllGoalsCompleted())
         {
             LevelCompletePanelShowing();
@@ -210,10 +330,11 @@ public class BoardManager : MonoBehaviour
         foreach (var goal in remainingGoals.Values)
         {
             if (goal > 0)
-                return false; // Still goals left
+                return false;
         }
-        return true; // ✅ All goals completed
+        return true;
     }
+    #endregion
 
     private void ClearBoard()
     {
@@ -232,6 +353,9 @@ public class BoardManager : MonoBehaviour
             }
         }
     }
+
+
+
 
     #region Set limit to block generation & handle board background 'border sprite'
     private void ValidateBoard()
