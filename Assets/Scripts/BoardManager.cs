@@ -508,36 +508,41 @@ public class BoardManager : MonoBehaviour
         block.transform.position = new Vector3(targetPos.x, targetPos.y, zPosition);
 
         // Jump animation after landing
-        //yield return StartCoroutine(BlockJump(block, fallDistance));
+        yield return StartCoroutine(JumpAnimation(block, fallDistance));
 
         block.isFalling = false;
     }
     #endregion
 
     #region Jump animation
-    private IEnumerator BlockJump(Block block, float fallDistance)
+    private IEnumerator JumpAnimation(Block block, float fallDistance)
     {
         if (fallDistance < 1) yield break;
 
-        float jumpHeight = Mathf.Clamp(fallDistance * 0.1f, 0.05f, 0.3f);
-        float jumpSpeed = 1f;
+        float jumpHeight = Mathf.Clamp(fallDistance * 0.07f, 0.05f, 0.3f);
+        float jumpSpeed = Mathf.Clamp(fallDistance * 0.25f, 1f, 1.8f);
 
         Vector3 originalPos = block.transform.position;
         Vector3 peakPos = originalPos + new Vector3(0, jumpHeight, 0);
 
+        float upTime = Mathf.Clamp(0.06f * fallDistance, 0.06f, 0.15f);
+        float downTime = upTime * 0.6f;
+
         float elapsedTime = 0f;
-        while (elapsedTime < 0.15f)
+
+        while (elapsedTime < upTime)
         {
             elapsedTime += Time.deltaTime * jumpSpeed;
-            block.transform.position = Vector3.Lerp(originalPos, peakPos, elapsedTime);
+            block.transform.position = Vector3.Lerp(originalPos, peakPos, elapsedTime / upTime);
             yield return null;
         }
 
         elapsedTime = 0f;
-        while (elapsedTime < 0.15f)
+
+        while (elapsedTime < downTime)
         {
             elapsedTime += Time.deltaTime * jumpSpeed;
-            block.transform.position = Vector3.Lerp(peakPos, originalPos, elapsedTime);
+            block.transform.position = Vector3.Lerp(peakPos, originalPos, elapsedTime / downTime);
             yield return null;
         }
 
