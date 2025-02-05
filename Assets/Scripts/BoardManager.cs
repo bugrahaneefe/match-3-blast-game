@@ -115,7 +115,7 @@ public class BoardManager : MonoBehaviour
         }
     }
     #endregion
-    
+
     #region Level panels
     private void RestartPanelShowing()
     {
@@ -169,8 +169,8 @@ public class BoardManager : MonoBehaviour
 
         boardRenderer = GetComponent<SpriteRenderer>();
         ValidateBoard();
-        GenerateBlocks();
         CenterCamera();
+        GenerateBlocks();
 
         m_GameCondition = GameCondition.OnGoing;
         UIManager.Instance.SetupGoalUI();
@@ -205,13 +205,10 @@ public class BoardManager : MonoBehaviour
 
         if (boardRenderer != null)
         {
-            // **Set size dynamically based on grid size**
-            boardRenderer.size = new Vector2(width, height);
-
-            // **Adjust background position to center it with the board**
-            float bgX = (float)(width - 1) / 2;
-            float bgY = (float)((height - 1) / 2) + 1;
-            boardRenderer.transform.position = new Vector3(0, -0.5f, 1); // Keep Z at 1 to stay behind the blocks
+            boardRenderer.size = new Vector2(width + 0.2f, height + 0.4f);
+            float yPosition = (height % 2 == 0) ? -0.5f : -1f;
+            // Adjust background position to center it with the board
+            boardRenderer.transform.position = new Vector2(0, yPosition);
         }
     }
     #endregion
@@ -220,8 +217,8 @@ public class BoardManager : MonoBehaviour
     private void CenterCamera()
     {
         Camera.main.transform.position = new Vector3(0, 0, -10);
-        float aspectRatio = (float)Screen.width / Screen.height;
-        Camera.main.orthographicSize = Mathf.Max(height / 2f + 1, (width / 2f) / aspectRatio + 1);
+        float ortSize = Mathf.Max(height, width);
+        Camera.main.orthographicSize = ortSize;
     }
     #endregion
 
@@ -254,7 +251,7 @@ public class BoardManager : MonoBehaviour
     }
     #endregion
 
-    #region Each match should be unique & stored in list of blocks
+    #region Each matched pairs should be unique & stored in list of blocks
     private List<Block> GetConnectedBlocks(Block startBlock)
     {
         List<Block> result = new List<Block>();

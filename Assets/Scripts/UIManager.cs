@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UIElements;
+using UnityEngine.UI;
 using System.Collections.Generic;
 using System.Collections;
 using TMPro;
@@ -15,6 +16,7 @@ public class UIManager : MonoBehaviour
     public GameObject goalYellowPrefab;
     public GameObject goalPurplePrefab;
     public TMP_Text moveText;
+    public TMP_Text levelText;
     public UIDocument UIDoc;
     private VisualElement m_GamePanel;
     private Label m_MessageLabel;
@@ -70,6 +72,7 @@ public class UIManager : MonoBehaviour
     #region Load goals from level data
     public void LoadGoals(LevelData currentLevel)
      {
+        levelText.text = currentLevel.level_number.ToString();
         remainingGoals.Clear();
         remainingGoals[BlockType.Red] = currentLevel.red;
         remainingGoals[BlockType.Green] = currentLevel.green;
@@ -103,6 +106,34 @@ public class UIManager : MonoBehaviour
                     goalText.text = goal.Value.ToString();
                 }
                 goalCount++;
+            }
+        }
+
+        AdjustGoalUISize(goalCount);
+    }
+    #endregion
+
+    #region Adjust Goal UI Cell Size and Font Size Based on Number of Goals
+    private void AdjustGoalUISize(int goalCount)
+    {
+        GridLayoutGroup layoutGroup = goalUIContainer.GetComponent<GridLayoutGroup>();
+        if (layoutGroup != null)
+        {
+            layoutGroup.cellSize = goalCount > 3 ? new Vector2(70f, 70f) : new Vector2(100f, 100f);
+        }
+
+        foreach (var goalEntry in goalUIElements)
+        {
+            BlockType blockType = goalEntry.Key;
+            GameObject goalBlock = goalEntry.Value;
+
+            if (goalBlock != null)
+            {
+                TMP_Text goalText = goalBlock.transform.Find($"goal_{blockType.ToString().ToLower()}_text")?.GetComponent<TMP_Text>();
+                if (goalText != null)
+                {
+                    goalText.fontSize = goalCount > 3 ? 50f : 60f;
+                }
             }
         }
     }

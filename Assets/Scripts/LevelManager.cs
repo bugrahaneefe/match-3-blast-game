@@ -91,6 +91,7 @@ public class LevelManager : MonoBehaviour
     {
         if (!levels.ContainsKey(levelNumber))
         {
+            UIManager.Instance.SetPanelMessage(true, "Game Completed!");
             Debug.LogError($"Level {levelNumber} does not exist!");
             return;
         }
