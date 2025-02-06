@@ -15,6 +15,7 @@ public class BoardManager : MonoBehaviour
 {
     public static BoardManager Instance;
     public GameObject[] blockPrefabs;
+    public GameObject rocketBlockPrefab;
     public Node[,] blockBoard;
     public GameObject particlePrefabA;
     public GameObject particlePrefabB;
@@ -89,23 +90,30 @@ public class BoardManager : MonoBehaviour
             {
                 LevelCompletePanelShowing();
             }
+            
             CheckRemainingMoves();
+
+            // 🚀 Replace only the clicked block with a Rocket Block
+            int xPos = clickedBlock.xIndex;
+            int yPos = clickedBlock.yIndex;
+            Vector3 worldPosition = clickedBlock.transform.position;
+
+            // Don't remove clicked block from the list (it will be replaced instead)
+            connectedBlocks.Remove(clickedBlock);
+
+            // 🚀 Replace the clicked block with a Rocket Block
+            GameObject rocketObj = Instantiate(rocketBlockPrefab, worldPosition, Quaternion.identity);
+            rocketObj.transform.SetParent(this.transform);
+
+            // Register the Rocket Block in the board
+            Block rocketBlock = rocketObj.GetComponent<Block>();
+            rocketBlock.SetIndicies(xPos, yPos);
+
+            // Replace the board node with the new Rocket block
+            blockBoard[xPos, yPos] = new Node(rocketObj) { isClickable = true };
+
             RemoveBlocks(connectedBlocks);
-
-            bool isVerticalRocket = (Random.value < 0.5f);
-
-            if (isVerticalRocket)
-            {
-                // Spawn rockets for vertical movement
-                SpawnRocket(clickedBlock.transform.position, Vector2.up);    // Moves up
-                SpawnRocket(clickedBlock.transform.position, Vector2.down);  // Moves down
-            }
-            else
-            {
-                // Spawn rockets for horizontal movement
-                SpawnRocket(clickedBlock.transform.position, Vector2.left);  // Moves left
-                SpawnRocket(clickedBlock.transform.position, Vector2.right); // Moves right
-            }
+            Destroy(clickedBlock.gameObject);
         }
         else if (connectedBlocks.Count >= 2)
         {
@@ -120,7 +128,7 @@ public class BoardManager : MonoBehaviour
     }
     #endregion
 
-    private void SpawnRocket(Vector3 startPosition, Vector2 moveDirection)
+    public void SpawnRocket(Vector3 startPosition, Vector2 moveDirection)
     {
         GameObject rocketPrefab = (moveDirection.x != 0) ? rocketRightPrefab : rocketLeftPrefab;
         GameObject rocket = Instantiate(rocketPrefab, startPosition, Quaternion.identity);
@@ -468,12 +476,12 @@ public class BoardManager : MonoBehaviour
 
             if (b.blockType == BlockType.Balloon)
             {
-                SoundManager.Instance.PlayBalloonExplode(); // ✅ Play Balloon sound
+                SoundManager.Instance.PlayBalloonExplode();
                 UIManager.Instance.UpdateGoals(new List<Block> { b });
             }
             else if (b.blockType == BlockType.Duck)
             {
-                SoundManager.Instance.PlayDuckExplode(); // ✅ Play Duck sound
+                SoundManager.Instance.PlayDuckExplode();
                 UIManager.Instance.UpdateGoals(new List<Block> { b });
             }
 
@@ -621,7 +629,7 @@ public class BoardManager : MonoBehaviour
     #endregion
 
     #region Fall Implementation for existing blocks
-    private IEnumerator FallExistingBlocks()
+    public IEnumerator FallExistingBlocks()
     {
         bool hasFallingBlocks = false;
 

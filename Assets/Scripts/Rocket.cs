@@ -4,9 +4,9 @@ using UnityEngine;
 
 public class Rocket : MonoBehaviour
 {
-    public float startSpeed = 6f;  // Initial speed
-    public float maxSpeed = 15f;   // Maximum speed
-    public float accelerationTime = 1f; // Time (in seconds) to reach max speed
+    public float startSpeed = 5f;  // Initial speed
+    public float maxSpeed = 25f;   // Maximum speed
+    public float accelerationTime = 0.2f; // Time (in seconds) to reach max speed
 
     private float currentSpeed;
     public Vector2 direction;

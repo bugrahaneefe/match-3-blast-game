@@ -1355,9 +1355,9 @@ MonoBehaviour:
   - {fileID: 3107774232250102232, guid: bc8f627d741d9224fbf1d9ea11b73a37, type: 3}
   - {fileID: 6404875341643922492, guid: 603e887c8cc334445b6de3abf7485be5, type: 3}
   - {fileID: 8230946210141476036, guid: f53c14baebb652e4fb3290f6f7ec076c, type: 3}
-  - {fileID: 7497966042375472897, guid: a0dc50d5d3db8574195d1afb041e1b3d, type: 3}
   - {fileID: 398044923065251553, guid: 1a84820d9067cfa4ea3d229f2ee2f3bb, type: 3}
-  - {fileID: 1830088097494662757, guid: d22f591d43ae8f447a4e0fbae70b88c3, type: 3}
+  - {fileID: 7497966042375472897, guid: a0dc50d5d3db8574195d1afb041e1b3d, type: 3}
+  rocketBlockPrefab: {fileID: 1830088097494662757, guid: d22f591d43ae8f447a4e0fbae70b88c3, type: 3}
   particlePrefabA: {fileID: 7041941523923363057, guid: 56a0cc90202f23a48a8fdc16f4b6154a, type: 3}
   particlePrefabB: {fileID: 8575625750179667107, guid: aed608f0500db0e47a51704c690eb75b, type: 3}
   rocketLeftPrefab: {fileID: 2391671105574696201, guid: 1fe37ec816a083b4b90c8631545dd9af, type: 3}
