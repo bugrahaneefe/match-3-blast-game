@@ -8,7 +8,8 @@ public enum BlockType
     Green,
     Yellow,
     Duck,
-    Balloon
+    Balloon,
+    Rocket
 }
 
 public class Block : MonoBehaviour

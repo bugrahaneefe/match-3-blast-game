@@ -18,6 +18,8 @@ public class BoardManager : MonoBehaviour
     public Node[,] blockBoard;
     public GameObject particlePrefabA;
     public GameObject particlePrefabB;
+    public GameObject rocketLeftPrefab;
+    public GameObject rocketRightPrefab;
     public int width = 9;
     public int height = 9;
     public float spacingX;
@@ -80,7 +82,7 @@ public class BoardManager : MonoBehaviour
         List<Block> connectedBlocks = GetConnectedBlocks(clickedBlock);
 
         // If match found remove the blocks
-        if (connectedBlocks.Count >= 2)
+        if (connectedBlocks.Count >= 5)
         {
             UIManager.Instance.UpdateGoals(connectedBlocks);
             if (UIManager.Instance.CheckAllGoalsCompleted())
@@ -89,10 +91,24 @@ public class BoardManager : MonoBehaviour
             }
             CheckRemainingMoves();
             RemoveBlocks(connectedBlocks);
+
+            bool isVerticalRocket = (Random.value < 0.5f);
+
+            if (isVerticalRocket)
+            {
+                // Spawn rockets for vertical movement
+                SpawnRocket(clickedBlock.transform.position, Vector2.up);    // Moves up
+                SpawnRocket(clickedBlock.transform.position, Vector2.down);  // Moves down
+            }
+            else
+            {
+                // Spawn rockets for horizontal movement
+                SpawnRocket(clickedBlock.transform.position, Vector2.left);  // Moves left
+                SpawnRocket(clickedBlock.transform.position, Vector2.right); // Moves right
+            }
         }
-        else if (connectedBlocks.Count >= 5)
+        else if (connectedBlocks.Count >= 2)
         {
-            Debug.Log("Rocket implementation");
             UIManager.Instance.UpdateGoals(connectedBlocks);
             if (UIManager.Instance.CheckAllGoalsCompleted())
             {
@@ -103,6 +119,32 @@ public class BoardManager : MonoBehaviour
         }
     }
     #endregion
+
+    private void SpawnRocket(Vector3 startPosition, Vector2 moveDirection)
+    {
+        GameObject rocketPrefab = (moveDirection.x != 0) ? rocketRightPrefab : rocketLeftPrefab;
+        GameObject rocket = Instantiate(rocketPrefab, startPosition, Quaternion.identity);
+
+        if (moveDirection == Vector2.right)
+        {
+            rocket.transform.rotation = Quaternion.Euler(0, 0, 0);  // Right (No rotation)
+        }
+        else if (moveDirection == Vector2.left)
+        {
+            rocket.transform.rotation = Quaternion.Euler(0, 0, 180); // Left (Flipped)
+        }
+        else if (moveDirection == Vector2.up)
+        {
+            rocket.transform.rotation = Quaternion.Euler(0, 0, -90);  // Up
+        }
+        else if (moveDirection == Vector2.down)
+        {
+            rocket.transform.rotation = Quaternion.Euler(0, 0, 90); // Down
+        }
+
+        Rocket rocketScript = rocket.AddComponent<Rocket>();
+        rocketScript.direction = moveDirection;
+    }
 
     #region Top UI remaining moves
     private void CheckRemainingMoves()
@@ -129,7 +171,7 @@ public class BoardManager : MonoBehaviour
         m_GameCondition = GameCondition.GameOver;
     }
 
-    private void LevelCompletePanelShowing()
+    public void LevelCompletePanelShowing()
     {
         UIManager.Instance.SetPanelMessage(true, "You completed the level!\nTap for next level.");
         ClearBoard();
@@ -395,7 +437,7 @@ public class BoardManager : MonoBehaviour
     #endregion
 
     #region Remove blocks & Apply fall implementations
-    private void RemoveBlocks(List<Block> blocksToRemove)
+    public void RemoveBlocks(List<Block> blocksToRemove)
     {
         if (blocksToRemove.Count > 0)
         {
