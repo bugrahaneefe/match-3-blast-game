@@ -16,6 +16,7 @@ public class UIManager : MonoBehaviour
     public GameObject goalYellowPrefab;
     public GameObject goalPurplePrefab;
     public GameObject goalDuckPrefab;
+    public GameObject goalBalloonPrefab;
     public TMP_Text moveText;
     public TMP_Text levelText;
     public UIDocument UIDoc;
@@ -46,6 +47,7 @@ public class UIManager : MonoBehaviour
             { BlockType.Yellow, goalYellowPrefab },
             { BlockType.Purple, goalPurplePrefab },
             { BlockType.Duck, goalDuckPrefab },
+            { BlockType.Balloon, goalBalloonPrefab },
         };
     }
 
@@ -82,6 +84,7 @@ public class UIManager : MonoBehaviour
         remainingGoals[BlockType.Purple] = currentLevel.purple;
         remainingGoals[BlockType.Blue] = currentLevel.blue;
         remainingGoals[BlockType.Duck] = currentLevel.duck;
+        remainingGoals[BlockType.Balloon] = currentLevel.balloon;
     }
     #endregion
         
@@ -122,7 +125,7 @@ public class UIManager : MonoBehaviour
         GridLayoutGroup layoutGroup = goalUIContainer.GetComponent<GridLayoutGroup>();
         if (layoutGroup != null)
         {
-            layoutGroup.cellSize = goalCount > 3 ? new Vector2(70f, 70f) : new Vector2(100f, 100f);
+            layoutGroup.cellSize = goalCount > 3 ? new Vector2(60f, 60f) : new Vector2(100f, 100f);
         }
 
         foreach (var goalEntry in goalUIElements)

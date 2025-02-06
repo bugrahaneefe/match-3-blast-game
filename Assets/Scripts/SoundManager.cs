@@ -5,6 +5,9 @@ public class SoundManager : MonoBehaviour
     public static SoundManager Instance;
     public AudioSource audioSource;
     public AudioClip cubeExplodeSound;
+    public AudioClip balloonExplodeSound;
+    public AudioClip duckExplodeSound;
+
 
     #region Singleton
     private void Awake()
@@ -35,5 +38,15 @@ public class SoundManager : MonoBehaviour
     public void PlayCubeExplode()
     {
         PlaySound(cubeExplodeSound);
+    }
+
+    public void PlayBalloonExplode()
+    {
+        PlaySound(balloonExplodeSound);
+    }
+
+    public void PlayDuckExplode()
+    {
+        PlaySound(duckExplodeSound);
     }
 }

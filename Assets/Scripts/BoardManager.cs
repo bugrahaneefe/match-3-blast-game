@@ -28,6 +28,8 @@ public class BoardManager : MonoBehaviour
 
     private int currentDuckCount = 0;
     private int maxDucksAllowed = 0;
+    private int currentBalloonCount = 0;
+    private int maxBalloonAllowed = 0;
 
     #region Singleton
     private void Awake()
@@ -39,7 +41,7 @@ public class BoardManager : MonoBehaviour
     private void Start()
     {
         m_GameCondition = GameCondition.OnGoing;
-        LevelManager.Instance.LoadLevel(1);
+        LevelManager.Instance.LoadLevel(3);
     }
 
     private void Update()
@@ -237,6 +239,9 @@ public class BoardManager : MonoBehaviour
         maxDucksAllowed = currentLevel.duck;
         // Reset current duck for next level
         currentDuckCount = 0;
+        maxBalloonAllowed = currentLevel.balloon;
+        // Reset current balloon for next level
+        currentBalloonCount = 0;
 
         for (int y = 0; y < height; y++)
         {
@@ -256,10 +261,22 @@ public class BoardManager : MonoBehaviour
                     } while (blockComponent != null && blockComponent.blockType == BlockType.Duck);
                 }
 
-                // No duck generation at bottom
+                // If maxBalloonAllowed is zero, dont generate balloon at all.
+                if (maxBalloonAllowed == 0 && blockComponent != null && blockComponent.blockType == BlockType.Balloon)
+                {
+                    do
+                    {
+                        randomIndex = Random.Range(0, blockPrefabs.Length);
+                        blockComponent = blockPrefabs[randomIndex].GetComponent<Block>();
+                    } while (blockComponent != null && blockComponent.blockType == BlockType.Balloon);
+                }
+
+                // No duck generation at bottom &
+                // Generate ducks according to maxDucksAllowed
                 if ((y == 0) || (blockComponent != null && blockComponent.blockType == BlockType.Duck && currentDuckCount >= maxDucksAllowed))
                 {
-                    bool allowExtraDuck = Random.value < 0.15f;
+                    float duckChanceFactor = Mathf.Clamp(0.1f / (currentDuckCount + 1), 0.02f, 0.1f);
+                    bool allowExtraDuck = Random.value < duckChanceFactor;
 
                     if (!allowExtraDuck || y == 0)
                     {
@@ -276,8 +293,34 @@ public class BoardManager : MonoBehaviour
                     currentDuckCount++;
                 }
 
+                // Generate ballon according to maxBalloonAllowed
+                if (blockComponent != null && blockComponent.blockType == BlockType.Balloon)
+                {
+                    if (currentBalloonCount >= maxBalloonAllowed)
+                    {
+                        float balloonChanceFactor = Mathf.Clamp(0.1f / (currentBalloonCount + 1), 0.02f, 0.1f);
+                        bool allowExtraBalloon = Random.value < balloonChanceFactor;
+
+                        if (!allowExtraBalloon)
+                        {
+                            do
+                            {
+                                randomIndex = Random.Range(0, blockPrefabs.Length);
+                                blockComponent = blockPrefabs[randomIndex].GetComponent<Block>();
+                            } while (blockComponent != null && blockComponent.blockType == BlockType.Balloon);
+                        }
+                    }
+                    else
+                    {
+                        currentBalloonCount++; // Only count if a Balloon is successfully placed
+                    }
+                }
+
                 GameObject blockObj = Instantiate(blockPrefabs[randomIndex], position, Quaternion.identity);
-                float zPosition = -(float)y / height;
+                
+                float zPosition = (blockComponent.blockType == BlockType.Balloon || blockComponent.blockType == BlockType.Duck)
+                ? -2f  // Set them forward in Z-space
+                : -(float)y / height;  // Default for other block
                 blockObj.transform.position = new Vector3(position.x, position.y, zPosition);
 
                 Block block = blockObj.GetComponent<Block>();
@@ -356,14 +399,42 @@ public class BoardManager : MonoBehaviour
     {
         if (blocksToRemove.Count > 0)
         {
-            SoundManager.Instance.PlayCubeExplode();
+            SoundManager.Instance.PlayCubeExplode(); // Default block explosion sound
         }
+
+        HashSet<Block> blocksToDestroy = new HashSet<Block>(blocksToRemove);
 
         foreach (Block b in blocksToRemove)
         {
             if (b == null) continue;
 
+            List<Block> adjacentBalloons = GetAdjacentBalloons(b);
+            foreach (Block balloon in adjacentBalloons)
+            {
+                if (!blocksToDestroy.Contains(balloon))
+                {
+                    blocksToDestroy.Add(balloon);
+                }
+            }
+        }
+
+        foreach (Block b in blocksToDestroy)
+        {
+            if (b == null) continue;
+
             ExplosionAffecting(b);
+
+            if (b.blockType == BlockType.Balloon)
+            {
+                SoundManager.Instance.PlayBalloonExplode(); // ✅ Play Balloon sound
+                UIManager.Instance.UpdateGoals(new List<Block> { b });
+            }
+            else if (b.blockType == BlockType.Duck)
+            {
+                SoundManager.Instance.PlayDuckExplode(); // ✅ Play Duck sound
+                UIManager.Instance.UpdateGoals(new List<Block> { b });
+            }
+
             Destroy(b.gameObject);
             blockBoard[b.xIndex, b.yIndex] = null;
         }
@@ -391,6 +462,57 @@ public class BoardManager : MonoBehaviour
         RemoveBlocks(singleDuck);
     }
     #endregion
+
+    private List<Block> GetAdjacentBalloons(Block block)
+{
+    List<Block> balloonsToRemove = new List<Block>();
+
+    int x = block.xIndex;
+    int y = block.yIndex;
+
+    // Check up
+    if (y + 1 < height && blockBoard[x, y + 1]?.block != null)
+    {
+        Block upBlock = blockBoard[x, y + 1].block.GetComponent<Block>();
+        if (upBlock.blockType == BlockType.Balloon)
+        {
+            balloonsToRemove.Add(upBlock);
+        }
+    }
+
+    // Check down
+    if (y - 1 >= 0 && blockBoard[x, y - 1]?.block != null)
+    {
+        Block downBlock = blockBoard[x, y - 1].block.GetComponent<Block>();
+        if (downBlock.blockType == BlockType.Balloon)
+        {
+            balloonsToRemove.Add(downBlock);
+        }
+    }
+
+    // Check left
+    if (x - 1 >= 0 && blockBoard[x - 1, y]?.block != null)
+    {
+        Block leftBlock = blockBoard[x - 1, y].block.GetComponent<Block>();
+        if (leftBlock.blockType == BlockType.Balloon)
+        {
+            balloonsToRemove.Add(leftBlock);
+        }
+    }
+
+    // Check right
+    if (x + 1 < width && blockBoard[x + 1, y]?.block != null)
+    {
+        Block rightBlock = blockBoard[x + 1, y].block.GetComponent<Block>();
+        if (rightBlock.blockType == BlockType.Balloon)
+        {
+            balloonsToRemove.Add(rightBlock);
+        }
+    }
+
+    return balloonsToRemove;
+}
+
 
     #region Explosion effect for removed blocks
     private void ExplosionAffecting(Block block)
@@ -518,24 +640,43 @@ public class BoardManager : MonoBehaviour
                     int randomIndex = Random.Range(0, blockPrefabs.Length);
                     Block blockComponent = blockPrefabs[randomIndex].GetComponent<Block>();
 
-                    // Avoid extra ducks if we are over the limit
-                    if (blockComponent != null && blockComponent.blockType == BlockType.Duck)
+                    // Avoid extra balloons or ducks if we are over the limit
+                    if (blockComponent != null)
                     {
-                        currentDuckCount++;
-                        if (currentDuckCount > maxDucksAllowed)
+                        bool isDuck = blockComponent.blockType == BlockType.Duck;
+                        bool isBalloon = blockComponent.blockType == BlockType.Balloon;
+
+                        if ((isDuck && currentDuckCount >= maxDucksAllowed) || (isBalloon && currentBalloonCount >= maxBalloonAllowed))
                         {
-                            int indexWithoutDuck = Random.Range(0, blockPrefabs.Length - 1);
-                            randomIndex = indexWithoutDuck;
+                            do
+                            {
+                                randomIndex = Random.Range(0, blockPrefabs.Length);
+                                blockComponent = blockPrefabs[randomIndex].GetComponent<Block>();
+
+                            } while ((blockComponent != null && blockComponent.blockType == BlockType.Duck && currentDuckCount >= maxDucksAllowed) ||
+                                    (blockComponent != null && blockComponent.blockType == BlockType.Balloon && currentBalloonCount >= maxBalloonAllowed));
+                        }
+
+                        if (blockComponent.blockType == BlockType.Duck)
+                        {
+                            currentDuckCount++;
+                        }
+                        else if (blockComponent.blockType == BlockType.Balloon)
+                        {
+                            currentBalloonCount++;
                         }
                     }
 
                     GameObject blockObj = Instantiate(blockPrefabs[randomIndex]);
                     blockObj.transform.SetParent(this.transform);
 
+                    float zPosition = (blockComponent.blockType == BlockType.Balloon || blockComponent.blockType == BlockType.Duck)
+                        ? -2f  // Set them forward in Z-space
+                        : -(float)y / height;  // Default for other block
                     float spawnY = height + 1;
                     float finalY = y - spacingY;
 
-                    blockObj.transform.position = new Vector3(x - spacingX, spawnY, -(float)y / height);
+                    blockObj.transform.position = new Vector3(x - spacingX, spawnY, zPosition);
 
                     Block block = blockObj.GetComponent<Block>();
                     block.SetIndicies(x, y);
@@ -573,7 +714,9 @@ public class BoardManager : MonoBehaviour
         }
 
         block.transform.position = targetPos;
-        float zPosition = -(float)block.yIndex / height;
+        float zPosition = (block.blockType == BlockType.Balloon || block.blockType == BlockType.Duck)
+            ? -2f  // Set them forward in Z-space
+            : -(float)block.yIndex / height;  // Default for other block
         block.transform.position = new Vector3(targetPos.x, targetPos.y, zPosition);
 
         yield return StartCoroutine(JumpAnimation(block, fallDistance));
