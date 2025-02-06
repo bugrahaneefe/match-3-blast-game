@@ -1,11 +1,13 @@
 {
        "level_number": 5,
-       "grid_width": 8,
+       "grid_width": 9,
        "grid_height": 12,
-       "move_count": 10,
+       "move_count": 26,
        "red": 2,
        "green": 2,
        "yellow": 2,
        "purple": 2,
-       "blue": 2
+       "blue": 2,
+       "duck": 3,
+       "balloon": 0
 }

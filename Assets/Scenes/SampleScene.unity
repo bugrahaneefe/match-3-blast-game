@@ -1014,6 +1014,7 @@ MonoBehaviour:
   goalGreenPrefab: {fileID: 2478038852838072220, guid: b7b7a5fb3d2991542a31b0234d27d779, type: 3}
   goalYellowPrefab: {fileID: 7179480874972919317, guid: a480c2df8db503d4eae52e86ccee8eeb, type: 3}
   goalPurplePrefab: {fileID: 3478688927364364976, guid: a23def3b0b8c0d6458450b373b83b820, type: 3}
+  goalDuckPrefab: {fileID: 4638929427028149435, guid: 9707563a27473fb4199839e139d5dbf2, type: 3}
   moveText: {fileID: 898939130}
   levelText: {fileID: 1568324707}
   UIDoc: {fileID: 2082941538}
@@ -1351,6 +1352,7 @@ MonoBehaviour:
   - {fileID: 3107774232250102232, guid: bc8f627d741d9224fbf1d9ea11b73a37, type: 3}
   - {fileID: 6404875341643922492, guid: 603e887c8cc334445b6de3abf7485be5, type: 3}
   - {fileID: 8230946210141476036, guid: f53c14baebb652e4fb3290f6f7ec076c, type: 3}
+  - {fileID: 7497966042375472897, guid: a0dc50d5d3db8574195d1afb041e1b3d, type: 3}
   particlePrefabA: {fileID: 7041941523923363057, guid: 56a0cc90202f23a48a8fdc16f4b6154a, type: 3}
   particlePrefabB: {fileID: 8575625750179667107, guid: aed608f0500db0e47a51704c690eb75b, type: 3}
   width: 9

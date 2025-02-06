@@ -12,5 +12,7 @@ public class LevelData
     public int yellow;
     public int purple;
     public int blue;
+    public int duck;
+    public int balloon;
 }
 

@@ -15,6 +15,7 @@ public class UIManager : MonoBehaviour
     public GameObject goalGreenPrefab;
     public GameObject goalYellowPrefab;
     public GameObject goalPurplePrefab;
+    public GameObject goalDuckPrefab;
     public TMP_Text moveText;
     public TMP_Text levelText;
     public UIDocument UIDoc;
@@ -43,7 +44,8 @@ public class UIManager : MonoBehaviour
             { BlockType.Blue, goalBluePrefab },
             { BlockType.Green, goalGreenPrefab },
             { BlockType.Yellow, goalYellowPrefab },
-            { BlockType.Purple, goalPurplePrefab }
+            { BlockType.Purple, goalPurplePrefab },
+            { BlockType.Duck, goalDuckPrefab },
         };
     }
 
@@ -79,6 +81,7 @@ public class UIManager : MonoBehaviour
         remainingGoals[BlockType.Yellow] = currentLevel.yellow;
         remainingGoals[BlockType.Purple] = currentLevel.purple;
         remainingGoals[BlockType.Blue] = currentLevel.blue;
+        remainingGoals[BlockType.Duck] = currentLevel.duck;
     }
     #endregion
         

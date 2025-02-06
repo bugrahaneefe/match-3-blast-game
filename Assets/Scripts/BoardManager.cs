@@ -25,7 +25,10 @@ public class BoardManager : MonoBehaviour
     private SpriteRenderer boardRenderer;
     private int remainingMoves;
     private GameCondition m_GameCondition;
-    
+
+    private int currentDuckCount = 0;
+    private int maxDucksAllowed = 0;
+
     #region Singleton
     private void Awake()
     {
@@ -222,7 +225,7 @@ public class BoardManager : MonoBehaviour
     }
     #endregion
 
-    #region Board generation
+    #region Board Generation
     private void GenerateBlocks()
     {
         blockBoard = new Node[width, height];
@@ -230,16 +233,51 @@ public class BoardManager : MonoBehaviour
         spacingX = (float)(width - 1) / 2;
         spacingY = (float)((height - 1) / 2) + 1;
 
+        LevelData currentLevel = LevelManager.Instance.GetLevel(LevelManager.Instance.GetCurrentLevelNumber());
+        maxDucksAllowed = currentLevel.duck;
+        // Reset current duck for next level
+        currentDuckCount = 0;
+
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)
             {
                 Vector2 position = new Vector2(x - spacingX, y - spacingY);
-
                 int randomIndex = Random.Range(0, blockPrefabs.Length);
-                GameObject blockObj = Instantiate(blockPrefabs[randomIndex], position, Quaternion.identity);
+                Block blockComponent = blockPrefabs[randomIndex].GetComponent<Block>();
 
-                float zPosition = -(float)y / height; 
+                // If maxDucksAllowed is zero, dont generate duck at all.
+                if (maxDucksAllowed == 0 && blockComponent != null && blockComponent.blockType == BlockType.Duck)
+                {
+                    do
+                    {
+                        randomIndex = Random.Range(0, blockPrefabs.Length);
+                        blockComponent = blockPrefabs[randomIndex].GetComponent<Block>();
+                    } while (blockComponent != null && blockComponent.blockType == BlockType.Duck);
+                }
+
+                // No duck generation at bottom
+                if ((y == 0) || (blockComponent != null && blockComponent.blockType == BlockType.Duck && currentDuckCount >= maxDucksAllowed))
+                {
+                    bool allowExtraDuck = Random.value < 0.15f;
+
+                    if (!allowExtraDuck || y == 0)
+                    {
+                        do
+                        {
+                            randomIndex = Random.Range(0, blockPrefabs.Length);
+                            blockComponent = blockPrefabs[randomIndex].GetComponent<Block>();
+                        } while (blockComponent != null && blockComponent.blockType == BlockType.Duck);
+                    }
+                }
+
+                if (blockComponent != null && blockComponent.blockType == BlockType.Duck)
+                {
+                    currentDuckCount++;
+                }
+
+                GameObject blockObj = Instantiate(blockPrefabs[randomIndex], position, Quaternion.identity);
+                float zPosition = -(float)y / height;
                 blockObj.transform.position = new Vector3(position.x, position.y, zPosition);
 
                 Block block = blockObj.GetComponent<Block>();
@@ -250,7 +288,7 @@ public class BoardManager : MonoBehaviour
         }
     }
     #endregion
-
+    
     #region Each matched pairs should be unique & stored in list of blocks
     private List<Block> GetConnectedBlocks(Block startBlock)
     {
@@ -313,23 +351,44 @@ public class BoardManager : MonoBehaviour
     }
     #endregion
 
-    #region Removing blocks & Apply fall implementations
+    #region Remove blocks & Apply fall implementations
     private void RemoveBlocks(List<Block> blocksToRemove)
     {
         if (blocksToRemove.Count > 0)
         {
-            SoundManager.Instance.PlayCubeExplode();  // ✅ Play sound via SoundManager
+            SoundManager.Instance.PlayCubeExplode();
         }
 
         foreach (Block b in blocksToRemove)
         {
             if (b == null) continue;
+
             ExplosionAffecting(b);
-            blockBoard[b.xIndex, b.yIndex] = null;
             Destroy(b.gameObject);
+            blockBoard[b.xIndex, b.yIndex] = null;
         }
 
         StartCoroutine(FallExistingBlocks());
+    }
+    #endregion
+
+    #region Remove duck block
+    private void RemoveDuckBlock(Block duckBlock)
+    {
+        if (duckBlock == null) return;
+
+        // Update ui goals for a single block
+        List<Block> singleDuck = new List<Block> { duckBlock };
+        UIManager.Instance.UpdateGoals(singleDuck);
+
+        // Check if that completes all goals
+        if (UIManager.Instance.CheckAllGoalsCompleted())
+        {
+            LevelCompletePanelShowing();
+        }
+
+        // Remove from board
+        RemoveBlocks(singleDuck);
     }
     #endregion
 
@@ -357,8 +416,8 @@ public class BoardManager : MonoBehaviour
                     case BlockType.Purple:  main.startColor = new Color(0.74f, 0.56f, 0.94f); break;
                     case BlockType.Green:   main.startColor = Color.green; break;
                     case BlockType.Yellow:  main.startColor = Color.yellow; break;
-                    case BlockType.Balloon:    main.startColor = new Color(1.0f, 0.71f, 0.81f); break;
-                    case BlockType.Duck:    main.startColor = Color.gray; break;
+                    case BlockType.Balloon: main.startColor = new Color(1.0f, 0.71f, 0.81f); break;
+                    case BlockType.Duck:    main.startColor = Color.yellow; break;
                     default: main.startColor = Color.white; break;
                 }
             }
@@ -457,8 +516,20 @@ public class BoardManager : MonoBehaviour
                 {
                     hasNewBlocks = true;
                     int randomIndex = Random.Range(0, blockPrefabs.Length);
-                    GameObject blockObj = Instantiate(blockPrefabs[randomIndex]);
+                    Block blockComponent = blockPrefabs[randomIndex].GetComponent<Block>();
 
+                    // Avoid extra ducks if we are over the limit
+                    if (blockComponent != null && blockComponent.blockType == BlockType.Duck)
+                    {
+                        currentDuckCount++;
+                        if (currentDuckCount > maxDucksAllowed)
+                        {
+                            int indexWithoutDuck = Random.Range(0, blockPrefabs.Length - 1);
+                            randomIndex = indexWithoutDuck;
+                        }
+                    }
+
+                    GameObject blockObj = Instantiate(blockPrefabs[randomIndex]);
                     blockObj.transform.SetParent(this.transform);
 
                     float spawnY = height + 1;
@@ -468,7 +539,6 @@ public class BoardManager : MonoBehaviour
 
                     Block block = blockObj.GetComponent<Block>();
                     block.SetIndicies(x, y);
-
                     block.isFalling = true;
 
                     blockBoard[x, y] = new Node(blockObj);
@@ -485,7 +555,7 @@ public class BoardManager : MonoBehaviour
     }
     #endregion
 
-    #region Make block fall down
+    #region Animation for downing blocks
     private IEnumerator MoveBlockDown(Block block, float targetY, float fallDistance)
     {
         block.isFalling = true;
@@ -503,14 +573,29 @@ public class BoardManager : MonoBehaviour
         }
 
         block.transform.position = targetPos;
-
         float zPosition = -(float)block.yIndex / height;
         block.transform.position = new Vector3(targetPos.x, targetPos.y, zPosition);
 
-        // Jump animation after landing
         yield return StartCoroutine(JumpAnimation(block, fallDistance));
 
         block.isFalling = false;
+
+        // Duck removal at bottom
+        if (block.blockType == BlockType.Duck && block.yIndex == 0 && m_GameCondition == GameCondition.OnGoing)
+        {
+            StartCoroutine(DelayedDuckRemoval(block, 0.2f));
+        }
+    }
+
+    // Slightly delayed removal for duck block
+    private IEnumerator DelayedDuckRemoval(Block duckBlock, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+
+        if (duckBlock != null)
+        {
+            RemoveDuckBlock(duckBlock);
+        }
     }
     #endregion
 
