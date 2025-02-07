@@ -13,49 +13,59 @@
        "allowManualBoardGeneration": true,
        "boardBlocks": [
        {
+              "x": 7,
+              "y": 7,
+              "blockType": "Duck"
+       },
+       {
               "x": 0,
-              "y": 0,
+              "y": 1,
               "blockType": "Green"
        },
        {
               "x": 1,
-              "y": 0,
+              "y": 1,
               "blockType": "Green"
        },
        {
               "x": 2,
-              "y": 0,
+              "y": 1,
               "blockType": "Green"
        },
        {
               "x": 3,
-              "y": 0,
-              "blockType": "red"
+              "y": 1,
+              "blockType": "Green"
        },
        {
               "x": 4,
-              "y": 0,
-              "blockType": "red"
+              "y": 1,
+              "blockType": "Green"
        },
        {
               "x": 0,
-              "y": 4,
-              "blockType": "red"
+              "y": 2,
+              "blockType": "Red"
+       },
+       {
+              "x": 1,
+              "y": 2,
+              "blockType": "Red"
        },
        {
               "x": 2,
-              "y": 4,
-              "blockType": "red"
-       },
-       {
-              "x": 4,
-              "y": 4,
-              "blockType": "balloon"
+              "y": 2,
+              "blockType": "Red"
        },
        {
               "x": 3,
-              "y": 7,
-              "blockType": "duck"
+              "y": 2,
+              "blockType": "Red"
+       },
+       {
+              "x": 4,
+              "y": 2,
+              "blockType": "Red"
        }
        ]
 }
