@@ -1,6 +1,14 @@
 using UnityEngine;
 
 [System.Serializable]
+public class BoardBlock
+{
+    public int x;
+    public int y;
+    public string blockType;
+}
+
+[System.Serializable]
 public class LevelData
 {
     public int level_number;
@@ -14,5 +22,8 @@ public class LevelData
     public int blue;
     public int duck;
     public int balloon;
-}
 
+    // New fields:
+    public bool allowManualBoardGeneration;
+    public BoardBlock[] boardBlocks;
+}

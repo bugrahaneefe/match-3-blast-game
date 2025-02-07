@@ -33,20 +33,7 @@ public class LevelManager : MonoBehaviour
     private void LoadLevels()
     {
         string path = Path.Combine(Application.streamingAssetsPath, levelsDirectory);
-
-        if (!Directory.Exists(path))
-        {
-            Debug.LogError($"Levels directory not found: {path}");
-            return;
-        }
-
         string[] files = Directory.GetFiles(path, "*.json");
-
-        if (files.Length == 0)
-        {
-            Debug.LogError("No level files found in Levels folder!");
-            return;
-        }
 
         foreach (string file in files)
         {

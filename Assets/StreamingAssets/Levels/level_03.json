@@ -7,7 +7,9 @@
        "green": 4,
        "yellow": 4,
        "purple": 6,
-       "blue": 12,
-       "duck": 2,
-       "balloon": 4
+       "blue": 0,
+       "duck": 0,
+       "balloon": 0,
+       "allowManualBoardGeneration": true,
+       "boardBlocks": []
 }

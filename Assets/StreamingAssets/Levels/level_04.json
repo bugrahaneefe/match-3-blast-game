@@ -1,6 +1,6 @@
 {
        "level_number": 4,
-       "grid_width": 6,
+       "grid_width": 8,
        "grid_height": 10,
        "move_count": 12,
        "red": 2,
@@ -9,5 +9,7 @@
        "purple": 8,
        "blue": 12,
        "duck": 0,
-       "balloon": 0
+       "balloon": 2,
+       "allowManualBoardGeneration": true,
+       "boardBlocks": []
 }

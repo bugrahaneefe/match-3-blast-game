@@ -1,13 +1,41 @@
 {
        "level_number": 2,
-       "grid_width": 9,
-       "grid_height": 6,
+       "grid_width": 8,
+       "grid_height": 12,
        "move_count": 16,
        "red": 0,
        "green": 10,
        "yellow": 4,
-       "purple": 8,
+       "purple": 0,
        "blue": 0,
-       "duck": 0,
-       "balloon": 4
+       "duck": 2,
+       "balloon": 4,
+       "allowManualBoardGeneration": true,
+       "boardBlocks": [
+       {
+              "x": 0,
+              "y": 0,
+              "blockType": "Green"
+       },
+       {
+              "x": 0,
+              "y": 4,
+              "blockType": "red"
+       },
+       {
+              "x": 2,
+              "y": 4,
+              "blockType": "red"
+       },
+       {
+              "x": 4,
+              "y": 4,
+              "blockType": "balloon"
+       },
+       {
+              "x": 3,
+              "y": 7,
+              "blockType": "duck"
+       }
+       ]
 }

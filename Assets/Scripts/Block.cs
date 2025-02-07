@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 public enum BlockType
 {
@@ -18,6 +19,8 @@ public class Block : MonoBehaviour
     public int xIndex;
     public int yIndex;
     public bool isFalling = false;
+
+    // True if vertical rocket, false if horizontal rocket
     private bool isVerticalRocket = false;
 
     public Block(int _x, int _y)
@@ -40,7 +43,6 @@ public class Block : MonoBehaviour
         }
     }
 
-    #region Add 2D Box Collider to block if is not available, to determine mouse clicks
     private void Start()
     {
         if (GetComponent<BoxCollider2D>() == null)
@@ -53,50 +55,168 @@ public class Block : MonoBehaviour
             transform.rotation = Quaternion.Euler(0, 0, -90);  // Up
         }
     }
+
+    #region rocket activation
+    public void ActivateRocket(bool isTriggeredByRocket = false)
+    {
+        // If it was triggered by a user click, check adjacency & possible big combo
+        if (!isTriggeredByRocket)
+        {
+            // Check if there's an adjacent rocket
+            if (IsAdjacentToRocket())
+            {
+                //big rocket combination
+                StartCoroutine(RocketComboRoutine());
+                return;
+            }
+
+            // Check remaining moves only when clicked by player
+            GameManager.Instance.CheckRemainingMoves();
+        }
+
+        // normal execution of rocket
+        if (isVerticalRocket)
+        {
+            BoardManager.Instance.SpawnRocket(transform.position, Vector2.up);
+            BoardManager.Instance.SpawnRocket(transform.position, Vector2.down);
+        }
+        else
+        {
+            BoardManager.Instance.SpawnRocket(transform.position, Vector2.left);
+            BoardManager.Instance.SpawnRocket(transform.position, Vector2.right);
+        }
+
+        // Remove rocket block from the board and destroy
+        BoardManager.Instance.blockBoard[xIndex, yIndex] = null;
+        Destroy(gameObject);
+    }
+
+    private IEnumerator RocketComboRoutine()
+    {
+        Vector3 initialPosition = transform.position;
+
+        // Hide the clicked rocket visually
+        SpriteRenderer rocketRenderer = GetComponent<SpriteRenderer>();
+        if (rocketRenderer != null)
+        {
+            rocketRenderer.enabled = false;
+        }
+
+        // Create a new big rocket at the clicked position
+        GameObject bigRocket = Instantiate(gameObject, initialPosition, Quaternion.identity);
+        bigRocket.transform.localScale = transform.localScale * 2;
+        bigRocket.transform.SetParent(BoardManager.Instance.transform);
+
+        if (isVerticalRocket)
+        {
+            bigRocket.transform.rotation = Quaternion.Euler(0, 0, -90);
+        }
+        else
+        {
+            bigRocket.transform.rotation = Quaternion.identity;
+        }
+
+        SpriteRenderer bigRocketRenderer = bigRocket.GetComponent<SpriteRenderer>();
+        if (bigRocketRenderer != null)
+        {
+            bigRocketRenderer.sortingOrder = 100;
+        }
+        else
+        {
+            bigRocket.transform.position += new Vector3(0, 0, -1);
+        }
+
+        // Get connected rockets, excluding this one
+        var neighbors = BoardManager.Instance.GetConnectedBlocks(this)
+                        .FindAll(block => block != this);
+
+        // Hide neighbor rockets visually instead of removing them
+        foreach (Block neighbor in neighbors)
+        {
+            if (neighbor != null && neighbor.blockType == BlockType.Rocket)
+            {
+                SpriteRenderer neighborRenderer = neighbor.GetComponent<SpriteRenderer>();
+                if (neighborRenderer != null)
+                {
+                    neighborRenderer.enabled = false; // Hide neighbor rocket
+                }
+            }
+        }
+
+        // Blinking effect (big rocket blinks 3 times)
+        for (int i = 0; i < 3; i++)
+        {
+            if (bigRocketRenderer != null)
+            {
+                bigRocketRenderer.enabled = false; // Hide
+            }
+            yield return new WaitForSeconds(0.1f);
+
+            if (bigRocketRenderer != null)
+            {
+                bigRocketRenderer.enabled = true; // Show
+            }
+            yield return new WaitForSeconds(0.1f);
+        }
+
+        yield return new WaitForSeconds(0.2f);
+        Destroy(bigRocket);
+
+        // Spawn 4 directional rockets at the stored initial position
+        BoardManager.Instance.SpawnRocket(initialPosition, Vector2.up);
+        BoardManager.Instance.SpawnRocket(initialPosition, Vector2.down);
+        BoardManager.Instance.SpawnRocket(initialPosition, Vector2.left);
+        BoardManager.Instance.SpawnRocket(initialPosition, Vector2.right);
+
+        // After spawning the rockets, now remove the neighbor rockets from the board
+        foreach (Block neighbor in neighbors)
+        {
+            if (neighbor != null && neighbor.blockType == BlockType.Rocket)
+            {
+                BoardManager.Instance.blockBoard[neighbor.xIndex, neighbor.yIndex] = null;
+                Destroy(neighbor.gameObject);
+            }
+        }
+
+        // Remove this rocket from the board and destroy it
+        BoardManager.Instance.blockBoard[xIndex, yIndex] = null;
+        Destroy(gameObject);
+    }
+
+    private bool IsAdjacentToRocket()
+    {
+        var neighbors = BoardManager.Instance.GetNeighbors(this);
+        foreach (Block neighbor in neighbors)
+        {
+            if (neighbor != null && neighbor.blockType == BlockType.Rocket)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
     #endregion
 
-    #region If block is clickable call HandleBlockClick from BoardManager
+    #region Click handling
     private void OnMouseDown()
     {
-        // Prevent reaching block as it is falling
+        // don't click a falling block
         if (isFalling) return;
 
         Node node = BoardManager.Instance.blockBoard[xIndex, yIndex];
-
-        if (node == null || !node.isClickable)
-        {
-            return;
-        }
+        if (node == null || !node.isClickable) return;
 
         if (blockType == BlockType.Rocket)
         {
-            ActivateRocket();
+            // If user clicks a rocket, isTriggeredByRocket=false
+            ActivateRocket(false);
             StartCoroutine(BoardManager.Instance.FallExistingBlocks());
         }
         else
         {
+            // Normal block click
             BoardManager.Instance.HandleBlockClick(this);
         }
-    }
-
-    private void ActivateRocket()
-    {
-        if (isVerticalRocket)
-        {
-            // Spawn rockets for vertical movement
-            BoardManager.Instance.SpawnRocket(transform.position, Vector2.up);    // Moves up
-            BoardManager.Instance.SpawnRocket(transform.position, Vector2.down);  // Moves down
-        }
-        else
-        {
-            // Spawn rockets for horizontal movement
-            BoardManager.Instance.SpawnRocket(transform.position, Vector2.left);  // Moves left
-            BoardManager.Instance.SpawnRocket(transform.position, Vector2.right); // Moves right
-        }
-
-        // 🚀 Remove the Rocket Block from the board
-        BoardManager.Instance.blockBoard[xIndex, yIndex] = null;
-        Destroy(gameObject);
     }
     #endregion
 }

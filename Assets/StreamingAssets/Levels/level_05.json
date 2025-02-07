@@ -9,5 +9,7 @@
        "purple": 2,
        "blue": 2,
        "duck": 3,
-       "balloon": 0
+       "balloon": 0,
+       "allowManualBoardGeneration": true,
+       "boardBlocks": []
 }

@@ -4,21 +4,12 @@ using System.Collections.Generic;
 using System.Collections;
 using TMPro;
 
-public enum GameCondition
-{
-    GameOver,
-    LevelPassed,
-    OnGoing
-}
-
 public class BoardManager : MonoBehaviour
 {
     public static BoardManager Instance;
     public GameObject[] blockPrefabs;
-    public GameObject rocketBlockPrefab;
     public Node[,] blockBoard;
-    public GameObject particlePrefabA;
-    public GameObject particlePrefabB;
+    public GameObject rocketBlockPrefab;
     public GameObject rocketLeftPrefab;
     public GameObject rocketRightPrefab;
     public int width = 9;
@@ -26,9 +17,6 @@ public class BoardManager : MonoBehaviour
     public float spacingX;
     public float spacingY;  
     private SpriteRenderer boardRenderer;
-    private int remainingMoves;
-    private GameCondition m_GameCondition;
-
     private int currentDuckCount = 0;
     private int maxDucksAllowed = 0;
     private int currentBalloonCount = 0;
@@ -43,36 +31,8 @@ public class BoardManager : MonoBehaviour
 
     private void Start()
     {
-        m_GameCondition = GameCondition.OnGoing;
-        LevelManager.Instance.LoadLevel(3);
-    }
-
-    private void Update()
-    {
-        if (m_GameCondition == GameCondition.GameOver)
-        {
-            if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
-            {
-                //RestartLevel();
-            }
-
-            if (Input.GetMouseButtonDown(0))
-            {
-                //RestartLevel();
-            }
-
-            if (Input.GetKeyDown(KeyCode.Return))
-            {
-                RestartLevel();
-            }
-        }
-        else if (m_GameCondition == GameCondition.LevelPassed)
-        {
-            if (Input.GetKeyDown(KeyCode.Return))
-            {
-                SetNextLevel();
-            }
-        }
+        GameManager.Instance.SetGameCondition(GameCondition.OnGoing);
+        LevelManager.Instance.LoadLevel(1);
     }
 
     #region If mouse clicked on to block
@@ -86,44 +46,33 @@ public class BoardManager : MonoBehaviour
         if (connectedBlocks.Count >= 5)
         {
             UIManager.Instance.UpdateGoals(connectedBlocks);
-            if (UIManager.Instance.CheckAllGoalsCompleted())
-            {
-                LevelCompletePanelShowing();
-            }
             
-            CheckRemainingMoves();
-
-            // 🚀 Replace only the clicked block with a Rocket Block
             int xPos = clickedBlock.xIndex;
             int yPos = clickedBlock.yIndex;
             Vector3 worldPosition = clickedBlock.transform.position;
 
-            // Don't remove clicked block from the list (it will be replaced instead)
             connectedBlocks.Remove(clickedBlock);
 
-            // 🚀 Replace the clicked block with a Rocket Block
             GameObject rocketObj = Instantiate(rocketBlockPrefab, worldPosition, Quaternion.identity);
             rocketObj.transform.SetParent(this.transform);
 
-            // Register the Rocket Block in the board
             Block rocketBlock = rocketObj.GetComponent<Block>();
             rocketBlock.SetIndicies(xPos, yPos);
 
-            // Replace the board node with the new Rocket block
             blockBoard[xPos, yPos] = new Node(rocketObj) { isClickable = true };
 
             RemoveBlocks(connectedBlocks);
             Destroy(clickedBlock.gameObject);
+
+            GameManager.Instance.CheckRemainingMoves();
         }
         else if (connectedBlocks.Count >= 2)
         {
             UIManager.Instance.UpdateGoals(connectedBlocks);
-            if (UIManager.Instance.CheckAllGoalsCompleted())
-            {
-                LevelCompletePanelShowing();
-            }
-            CheckRemainingMoves();
+            
             RemoveBlocks(connectedBlocks);
+
+            GameManager.Instance.CheckRemainingMoves();
         }
     }
     #endregion
@@ -154,60 +103,6 @@ public class BoardManager : MonoBehaviour
         rocketScript.direction = moveDirection;
     }
 
-    #region Top UI remaining moves
-    private void CheckRemainingMoves()
-    {
-        if (remainingMoves > 0)
-        {
-            remainingMoves--;
-            UIManager.Instance.UpdateMoveText(remainingMoves);
-
-            if (remainingMoves == 0)
-            {
-                RestartPanelShowing();
-                return;
-            }
-        }
-    }
-    #endregion
-
-    #region Level panels
-    private void RestartPanelShowing()
-    {
-        UIManager.Instance.SetPanelMessage(true, "You are out of moves!\nTap to restart.");
-        ClearBoard();
-        m_GameCondition = GameCondition.GameOver;
-    }
-
-    public void LevelCompletePanelShowing()
-    {
-        UIManager.Instance.SetPanelMessage(true, "You completed the level!\nTap for next level.");
-        ClearBoard();
-        m_GameCondition = GameCondition.LevelPassed;
-    }
-    #endregion
-
-    #region Level creation
-    private void RestartLevel()
-    {
-        m_GameCondition = GameCondition.OnGoing;
-        UIManager.Instance.SetPanelMessage(false, "RestartLevel");
-        
-        int currentLevel = LevelManager.Instance.GetCurrentLevelNumber();
-        LevelManager.Instance.LoadLevel(currentLevel);
-    }
-
-    private void SetNextLevel()
-    {
-        m_GameCondition = GameCondition.OnGoing;
-        UIManager.Instance.SetPanelMessage(false, "SetNextLevel");
-        
-        LevelManager.Instance.SetCurrentLevelNumber(LevelManager.Instance.GetCurrentLevelNumber() + 1);
-        int currentLevel = LevelManager.Instance.GetCurrentLevelNumber();
-        LevelManager.Instance.LoadLevel(currentLevel);
-    }
-    #endregion
-
     #region Load level data from level manager and update UI accordingly
     public void LoadLevelData(int levelNumber)
     {
@@ -217,23 +112,23 @@ public class BoardManager : MonoBehaviour
 
         width = currentLevel.grid_width;
         height = currentLevel.grid_height;
-        remainingMoves = currentLevel.move_count;
+        GameManager.Instance.SetRemainingMoves(currentLevel.move_count);
 
         UIManager.Instance.LoadGoals(currentLevel);
-        UIManager.Instance.UpdateMoveText(remainingMoves);
+        UIManager.Instance.UpdateMoveText(GameManager.Instance.GetRemainingMoves());
 
         boardRenderer = GetComponent<SpriteRenderer>();
         ValidateBoard();
         CenterCamera();
         GenerateBlocks();
 
-        m_GameCondition = GameCondition.OnGoing;
+        GameManager.Instance.SetGameCondition(GameCondition.OnGoing);
         UIManager.Instance.SetupGoalUI();
     }
     #endregion
 
     #region Clear board
-    private void ClearBoard()
+    public void ClearBoard()
     {
         if (blockBoard != null)
         {
@@ -271,14 +166,16 @@ public class BoardManager : MonoBehaviour
     #region Sync camera to board
     private void CenterCamera()
     {
-        Camera.main.transform.position = new Vector3(0, 0, -10);
+        Camera.main.transform.position = new Vector3(0, 0, -30);
         float ortSize = Mathf.Max(height, width);
-        Camera.main.orthographicSize = ortSize;
+        // normalize
+        float zoomFactor = Mathf.Lerp(1.13f, 1.1f, (ortSize - 4) / 8f);
+        Camera.main.orthographicSize = ortSize * zoomFactor;
     }
     #endregion
 
     #region Board Generation
-    private void GenerateBlocks()
+    public void GenerateBlocks()
     {
         blockBoard = new Node[width, height];
 
@@ -286,104 +183,199 @@ public class BoardManager : MonoBehaviour
         spacingY = (float)((height - 1) / 2) + 1;
 
         LevelData currentLevel = LevelManager.Instance.GetLevel(LevelManager.Instance.GetCurrentLevelNumber());
+
+        // Reset counters for ducks and balloons
         maxDucksAllowed = currentLevel.duck;
-        // Reset current duck for next level
         currentDuckCount = 0;
         maxBalloonAllowed = currentLevel.balloon;
-        // Reset current balloon for next level
         currentBalloonCount = 0;
 
+        // ---- NEW: Check if manual board generation is allowed
+        if (currentLevel.allowManualBoardGeneration && currentLevel.boardBlocks != null)
+        {
+            // 1) Initialize entire board to null
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    blockBoard[x, y] = null;
+                }
+            }
+
+            // 2) Place blocks for each coordinate specified in boardBlocks
+            foreach (BoardBlock bb in currentLevel.boardBlocks)
+            {
+                // Safety checks
+                if (bb.x < 0 || bb.x >= width || bb.y < 0 || bb.y >= height)
+                {
+                    Debug.LogWarning($"Skipping invalid board coordinate ({bb.x}, {bb.y})");
+                    continue;
+                }
+
+                // Convert string blockType to your actual BlockType enum
+                BlockType bt = GameManager.Instance.ParseBlockType(bb.blockType);
+
+                // Find the corresponding prefab (assuming your 'blockPrefabs' array 
+                // is ordered by block type or you have a helper method to map block type to prefab).
+                GameObject prefabToSpawn = GetPrefabForBlockType(bt);
+
+                if (prefabToSpawn == null)
+                {
+                    Debug.LogWarning($"No prefab found for blockType '{bb.blockType}' - skipping.");
+                    continue;
+                }
+
+                // Instantiate at correct position
+                Vector2 position = new Vector2(bb.x - spacingX, bb.y - spacingY);
+                GameObject blockObj = Instantiate(prefabToSpawn, position, Quaternion.identity);
+
+                // Adjust z-position (duck/balloon slightly forward)
+                float zPosition = (bt == BlockType.Duck || bt == BlockType.Balloon) ? -2f : -(float)bb.y / height;
+                blockObj.transform.position = new Vector3(position.x, position.y, zPosition);
+
+                // Set up the Block's indices
+                Block block = blockObj.GetComponent<Block>();
+                block.SetIndicies(bb.x, bb.y);
+
+                // Keep track of the newly created block
+                blockBoard[bb.x, bb.y] = new Node(blockObj);
+
+                // Update counters if needed
+                if (bt == BlockType.Duck) currentDuckCount++;
+                if (bt == BlockType.Balloon) currentBalloonCount++;
+            }
+
+            // Optionally, fill in the rest with random blocks if desired:
+            FillEmptySpacesWithRandomBlocks(); // see snippet below if you want partial random
+
+        }
+        else
+        {
+            // ---- If manual generation is NOT allowed or boardBlocks is null, do your existing random approach:
+
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    Vector2 position = new Vector2(x - spacingX, y - spacingY);
+
+                    int randomIndex;
+
+                    // 🚀 Ensure bottom row (y == 0) does not have Duck
+                    do
+                    {
+                        randomIndex = GetValidRandomPrefabIndex();
+                    } 
+                    while (y == 0 && blockPrefabs[randomIndex].GetComponent<Block>().blockType == BlockType.Duck);
+
+                    // ✅ Now safe to instantiate
+                    GameObject blockObj = Instantiate(blockPrefabs[randomIndex], position, Quaternion.identity);
+                    
+                    Block block = blockObj.GetComponent<Block>();
+                    float zPosition = (block.blockType == BlockType.Balloon || block.blockType == BlockType.Duck)
+                        ? -2f
+                        : -(float)y / height;
+                    blockObj.transform.position = new Vector3(position.x, position.y, zPosition);
+
+                    block.SetIndicies(x, y);
+                    blockBoard[x, y] = new Node(blockObj);
+                }
+            }
+        }
+    }
+
+    private GameObject GetPrefabForBlockType(BlockType blockType)
+    {
+        // 🚀 Handle Rockets Separately
+        if (blockType == BlockType.Rocket)
+        {
+            return rocketBlockPrefab;
+        }
+
+        // 🎨 Handle Normal Blocks Using blockPrefabs[]
+        int index = (int)blockType;
+        if (index < 0 || index >= blockPrefabs.Length)
+        {
+            Debug.LogError($"Invalid block type index: {index} for {blockType}");
+            return null;
+        }
+
+        return blockPrefabs[index];
+    }
+
+
+    private int GetValidRandomPrefabIndex()
+    {
+        int randomIndex;
+        BlockType blockType;
+
+        do
+        {
+            randomIndex = Random.Range(0, blockPrefabs.Length);
+            blockType = blockPrefabs[randomIndex].GetComponent<Block>().blockType;
+
+            // 🚀 If Duck limit is reached, ignore Ducks but allow other blocks
+            if (blockType == BlockType.Duck && currentDuckCount >= maxDucksAllowed)
+            {
+                continue;
+            }
+
+            // 🎈 If Balloon limit is reached, ignore Balloons but allow other blocks
+            if (blockType == BlockType.Balloon && currentBalloonCount >= maxBalloonAllowed)
+            {
+                continue;
+            }
+
+            // ✅ Found a valid block
+            break;
+
+        } while (true); // Keeps looping until a valid block is found
+
+        // If Duck or Balloon is selected, update counts
+        if (blockType == BlockType.Duck) currentDuckCount++;
+        if (blockType == BlockType.Balloon) currentBalloonCount++;
+
+        return randomIndex;
+    }
+
+    private void FillEmptySpacesWithRandomBlocks()
+    {
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)
             {
-                Vector2 position = new Vector2(x - spacingX, y - spacingY);
-                int randomIndex = Random.Range(0, blockPrefabs.Length);
-                Block blockComponent = blockPrefabs[randomIndex].GetComponent<Block>();
-
-                // If maxDucksAllowed is zero, dont generate duck at all.
-                if (maxDucksAllowed == 0 && blockComponent != null && blockComponent.blockType == BlockType.Duck)
+                if (blockBoard[x, y] == null)
                 {
+                    Vector2 position = new Vector2(x - spacingX, y - spacingY);
+
+                    int randomIndex;
+
+                    // 🚀 Ensure bottom row (y == 0) does not have Duck
                     do
                     {
-                        randomIndex = Random.Range(0, blockPrefabs.Length);
-                        blockComponent = blockPrefabs[randomIndex].GetComponent<Block>();
-                    } while (blockComponent != null && blockComponent.blockType == BlockType.Duck);
+                        randomIndex = GetValidRandomPrefabIndex();
+                    } 
+                    while (y == 0 && blockPrefabs[randomIndex].GetComponent<Block>().blockType == BlockType.Duck);
+
+                    // ✅ Now safe to instantiate
+                    GameObject blockObj = Instantiate(blockPrefabs[randomIndex], position, Quaternion.identity);
+
+                    Block block = blockObj.GetComponent<Block>();
+                    float zPosition = (block.blockType == BlockType.Balloon || block.blockType == BlockType.Duck)
+                        ? -2f
+                        : -(float)y / height;
+                    blockObj.transform.position = new Vector3(position.x, position.y, zPosition);
+
+                    block.SetIndicies(x, y);
+                    blockBoard[x, y] = new Node(blockObj);
                 }
-
-                // If maxBalloonAllowed is zero, dont generate balloon at all.
-                if (maxBalloonAllowed == 0 && blockComponent != null && blockComponent.blockType == BlockType.Balloon)
-                {
-                    do
-                    {
-                        randomIndex = Random.Range(0, blockPrefabs.Length);
-                        blockComponent = blockPrefabs[randomIndex].GetComponent<Block>();
-                    } while (blockComponent != null && blockComponent.blockType == BlockType.Balloon);
-                }
-
-                // No duck generation at bottom &
-                // Generate ducks according to maxDucksAllowed
-                if ((y == 0) || (blockComponent != null && blockComponent.blockType == BlockType.Duck && currentDuckCount >= maxDucksAllowed))
-                {
-                    float duckChanceFactor = Mathf.Clamp(0.1f / (currentDuckCount + 1), 0.02f, 0.1f);
-                    bool allowExtraDuck = Random.value < duckChanceFactor;
-
-                    if (!allowExtraDuck || y == 0)
-                    {
-                        do
-                        {
-                            randomIndex = Random.Range(0, blockPrefabs.Length);
-                            blockComponent = blockPrefabs[randomIndex].GetComponent<Block>();
-                        } while (blockComponent != null && blockComponent.blockType == BlockType.Duck);
-                    }
-                }
-
-                if (blockComponent != null && blockComponent.blockType == BlockType.Duck)
-                {
-                    currentDuckCount++;
-                }
-
-                // Generate ballon according to maxBalloonAllowed
-                if (blockComponent != null && blockComponent.blockType == BlockType.Balloon)
-                {
-                    if (currentBalloonCount >= maxBalloonAllowed)
-                    {
-                        float balloonChanceFactor = Mathf.Clamp(0.1f / (currentBalloonCount + 1), 0.02f, 0.1f);
-                        bool allowExtraBalloon = Random.value < balloonChanceFactor;
-
-                        if (!allowExtraBalloon)
-                        {
-                            do
-                            {
-                                randomIndex = Random.Range(0, blockPrefabs.Length);
-                                blockComponent = blockPrefabs[randomIndex].GetComponent<Block>();
-                            } while (blockComponent != null && blockComponent.blockType == BlockType.Balloon);
-                        }
-                    }
-                    else
-                    {
-                        currentBalloonCount++; // Only count if a Balloon is successfully placed
-                    }
-                }
-
-                GameObject blockObj = Instantiate(blockPrefabs[randomIndex], position, Quaternion.identity);
-                
-                float zPosition = (blockComponent.blockType == BlockType.Balloon || blockComponent.blockType == BlockType.Duck)
-                ? -2f  // Set them forward in Z-space
-                : -(float)y / height;  // Default for other block
-                blockObj.transform.position = new Vector3(position.x, position.y, zPosition);
-
-                Block block = blockObj.GetComponent<Block>();
-                block.SetIndicies(x, y);
-
-                blockBoard[x, y] = new Node(blockObj);
             }
         }
     }
     #endregion
     
     #region Each matched pairs should be unique & stored in list of blocks
-    private List<Block> GetConnectedBlocks(Block startBlock)
+    public List<Block> GetConnectedBlocks(Block startBlock)
     {
         List<Block> result = new List<Block>();
         Queue<Block> queue = new Queue<Block>();
@@ -412,7 +404,7 @@ public class BoardManager : MonoBehaviour
     #endregion
 
     #region Determine matches
-    private List<Block> GetNeighbors(Block block)
+    public List<Block> GetNeighbors(Block block)
     {
         List<Block> neighbors = new List<Block>();
 
@@ -445,7 +437,7 @@ public class BoardManager : MonoBehaviour
     #endregion
 
     #region Remove blocks & Apply fall implementations
-    public void RemoveBlocks(List<Block> blocksToRemove)
+    public void RemoveBlocks(List<Block> blocksToRemove, bool isTriggeredByRocket = false)
     {
         if (blocksToRemove.Count > 0)
         {
@@ -458,12 +450,14 @@ public class BoardManager : MonoBehaviour
         {
             if (b == null) continue;
 
-            List<Block> adjacentBalloons = GetAdjacentBalloons(b);
-            foreach (Block balloon in adjacentBalloons)
-            {
-                if (!blocksToDestroy.Contains(balloon))
+            if (!(isTriggeredByRocket)) {
+                List<Block> adjacentBalloons = GetAdjacentBalloons(b);
+                foreach (Block balloon in adjacentBalloons)
                 {
-                    blocksToDestroy.Add(balloon);
+                    if (!blocksToDestroy.Contains(balloon))
+                    {
+                        blocksToDestroy.Add(balloon);
+                    }
                 }
             }
         }
@@ -472,7 +466,7 @@ public class BoardManager : MonoBehaviour
         {
             if (b == null) continue;
 
-            ExplosionAffecting(b);
+            UIManager.Instance.ExplosionAffecting(b);
 
             if (b.blockType == BlockType.Balloon)
             {
@@ -500,139 +494,75 @@ public class BoardManager : MonoBehaviour
 
         // Update ui goals for a single block
         List<Block> singleDuck = new List<Block> { duckBlock };
-        UIManager.Instance.UpdateGoals(singleDuck);
+
+        Debug.Log(duckBlock.blockType);
+
+        // Remove from board
+        RemoveBlocks(singleDuck);
 
         // Check if that completes all goals
         if (UIManager.Instance.CheckAllGoalsCompleted())
         {
-            LevelCompletePanelShowing();
+            GameManager.Instance.LevelCompletePanelShowing();
         }
-
-        // Remove from board
-        RemoveBlocks(singleDuck);
     }
     #endregion
 
     private List<Block> GetAdjacentBalloons(Block block)
-{
-    List<Block> balloonsToRemove = new List<Block>();
-
-    int x = block.xIndex;
-    int y = block.yIndex;
-
-    // Check up
-    if (y + 1 < height && blockBoard[x, y + 1]?.block != null)
     {
-        Block upBlock = blockBoard[x, y + 1].block.GetComponent<Block>();
-        if (upBlock.blockType == BlockType.Balloon)
+        List<Block> balloonsToRemove = new List<Block>();
+
+        int x = block.xIndex;
+        int y = block.yIndex;
+
+        // Check up
+        if (y + 1 < height && blockBoard[x, y + 1]?.block != null)
         {
-            balloonsToRemove.Add(upBlock);
-        }
-    }
-
-    // Check down
-    if (y - 1 >= 0 && blockBoard[x, y - 1]?.block != null)
-    {
-        Block downBlock = blockBoard[x, y - 1].block.GetComponent<Block>();
-        if (downBlock.blockType == BlockType.Balloon)
-        {
-            balloonsToRemove.Add(downBlock);
-        }
-    }
-
-    // Check left
-    if (x - 1 >= 0 && blockBoard[x - 1, y]?.block != null)
-    {
-        Block leftBlock = blockBoard[x - 1, y].block.GetComponent<Block>();
-        if (leftBlock.blockType == BlockType.Balloon)
-        {
-            balloonsToRemove.Add(leftBlock);
-        }
-    }
-
-    // Check right
-    if (x + 1 < width && blockBoard[x + 1, y]?.block != null)
-    {
-        Block rightBlock = blockBoard[x + 1, y].block.GetComponent<Block>();
-        if (rightBlock.blockType == BlockType.Balloon)
-        {
-            balloonsToRemove.Add(rightBlock);
-        }
-    }
-
-    return balloonsToRemove;
-}
-
-
-    #region Explosion effect for removed blocks
-    private void ExplosionAffecting(Block block)
-    {
-        if (block == null) return;
-
-        GameObject chosenPrefab = Random.value > 0.5f ? particlePrefabA : particlePrefabB;
-        GameObject explosion = Instantiate(chosenPrefab, block.transform.position, Quaternion.identity);
-        ParticleSystem particleSystem = explosion.GetComponent<ParticleSystem>();
-
-        if (particleSystem != null)
-        {
-            var main = particleSystem.main;  
-            SpriteRenderer blockRenderer = block.GetComponent<SpriteRenderer>();
-
-            if (blockRenderer != null)
+            Block upBlock = blockBoard[x, y + 1].block.GetComponent<Block>();
+            if (upBlock.blockType == BlockType.Balloon)
             {
-                // Color based on block type
-                switch (block.blockType)
-                {
-                    case BlockType.Red:     main.startColor = Color.red; break;
-                    case BlockType.Blue:    main.startColor = Color.blue; break;
-                    case BlockType.Purple:  main.startColor = new Color(0.74f, 0.56f, 0.94f); break;
-                    case BlockType.Green:   main.startColor = Color.green; break;
-                    case BlockType.Yellow:  main.startColor = Color.yellow; break;
-                    case BlockType.Balloon: main.startColor = new Color(1.0f, 0.71f, 0.81f); break;
-                    case BlockType.Duck:    main.startColor = Color.yellow; break;
-                    default: main.startColor = Color.white; break;
-                }
+                balloonsToRemove.Add(upBlock);
             }
-
-            main.startSpeed = Random.Range(3f, 6f); 
-            main.gravityModifier = 1.5f;
-            var emission = particleSystem.emission;
-            emission.SetBurst(0, new ParticleSystem.Burst(0, Random.Range(5, 10)));  
-
-            StartCoroutine(RandomizeParticleSizes(particleSystem));
         }
 
-        ParticleSystemRenderer renderer = explosion.GetComponent<ParticleSystemRenderer>();
-        if (renderer != null)
+        // Check down
+        if (y - 1 >= 0 && blockBoard[x, y - 1]?.block != null)
         {
-            renderer.sortingLayerName = "Default";  
-            renderer.sortingOrder = 2;  
+            Block downBlock = blockBoard[x, y - 1].block.GetComponent<Block>();
+            if (downBlock.blockType == BlockType.Balloon)
+            {
+                balloonsToRemove.Add(downBlock);
+            }
         }
 
-        Destroy(explosion, 1.7f);
-    }
-
-    private IEnumerator RandomizeParticleSizes(ParticleSystem particleSystem)
-    {
-        yield return new WaitForSeconds(0.05f);
-
-        ParticleSystem.Particle[] particles = new ParticleSystem.Particle[particleSystem.main.maxParticles];
-        int count = particleSystem.GetParticles(particles);
-
-        for (int i = 0; i < count; i++)
+        // Check left
+        if (x - 1 >= 0 && blockBoard[x - 1, y]?.block != null)
         {
-            particles[i].startSize = Random.Range(0.16f, 0.215f);
+            Block leftBlock = blockBoard[x - 1, y].block.GetComponent<Block>();
+            if (leftBlock.blockType == BlockType.Balloon)
+            {
+                balloonsToRemove.Add(leftBlock);
+            }
         }
 
-        particleSystem.SetParticles(particles, count);
+        // Check right
+        if (x + 1 < width && blockBoard[x + 1, y]?.block != null)
+        {
+            Block rightBlock = blockBoard[x + 1, y].block.GetComponent<Block>();
+            if (rightBlock.blockType == BlockType.Balloon)
+            {
+                balloonsToRemove.Add(rightBlock);
+            }
+        }
+
+        return balloonsToRemove;
     }
-    #endregion
 
     #region Fall Implementation for existing blocks
     public IEnumerator FallExistingBlocks()
     {
         bool hasFallingBlocks = false;
-
+        yield return new WaitForSeconds(0.2f);
         for (int x = 0; x < width; x++)
         {
             int writeIndex = 0;
@@ -667,7 +597,7 @@ public class BoardManager : MonoBehaviour
             yield return new WaitForSeconds(0.3f);
         }
 
-        if (m_GameCondition == GameCondition.OnGoing) 
+        if (GameManager.Instance.GetGameCondition() == GameCondition.OnGoing) 
         {
             // Fall new blocks to emptied spaces
             StartCoroutine(FallNewBlocks());
@@ -774,7 +704,7 @@ public class BoardManager : MonoBehaviour
         block.isFalling = false;
 
         // Duck removal at bottom
-        if (block.blockType == BlockType.Duck && block.yIndex == 0 && m_GameCondition == GameCondition.OnGoing)
+        if (block.blockType == BlockType.Duck && block.yIndex == 0 && GameManager.Instance.GetGameCondition() == GameCondition.OnGoing)
         {
             StartCoroutine(DelayedDuckRemoval(block, 0.2f));
         }
