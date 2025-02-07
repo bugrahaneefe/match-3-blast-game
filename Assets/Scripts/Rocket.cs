@@ -49,7 +49,6 @@ public class Rocket : MonoBehaviour
 
         if (IsValidGridPosition(gridPosition))
         {
-            // Access the block at this position (if any)
             Block block = BoardManager.Instance.blockBoard[gridPosition.x, gridPosition.y]
                           ?.block?.GetComponent<Block>();
 

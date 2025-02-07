@@ -32,6 +32,7 @@ public class GameManager : MonoBehaviour
     {
         if (m_GameCondition == GameCondition.GameOver)
         {
+            // for mobile implementation
             if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
             {
                 //RestartLevel();
@@ -41,7 +42,9 @@ public class GameManager : MonoBehaviour
             {
                 //RestartLevel();
             }
+            //
 
+            // return key
             if (Input.GetKeyDown(KeyCode.Return))
             {
                 RestartLevel();
@@ -86,8 +89,11 @@ public class GameManager : MonoBehaviour
 
             if (m_RemainingMoves == 0)
             {
-                // Start 1-sec delayed restart panel
-                StartCoroutine(ShowRestartPanelWithDelay());
+                if (!UIManager.Instance.CheckAllGoalsCompleted())
+                {
+                    // Start 1-sec delayed restart panel
+                   StartCoroutine(ShowRestartPanelWithDelay());
+                }
                 return;
             }
         }

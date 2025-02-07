@@ -84,11 +84,11 @@ public class BoardManager : MonoBehaviour
 
         if (moveDirection == Vector2.right)
         {
-            rocket.transform.rotation = Quaternion.Euler(0, 0, 0);  // Right (No rotation)
+            rocket.transform.rotation = Quaternion.Euler(0, 0, 0);  // Right
         }
         else if (moveDirection == Vector2.left)
         {
-            rocket.transform.rotation = Quaternion.Euler(0, 0, 180); // Left (Flipped)
+            rocket.transform.rotation = Quaternion.Euler(0, 0, 180); // Left
         }
         else if (moveDirection == Vector2.up)
         {
@@ -125,6 +125,31 @@ public class BoardManager : MonoBehaviour
         GameManager.Instance.SetGameCondition(GameCondition.OnGoing);
         UIManager.Instance.SetupGoalUI();
     }
+
+    //Set limit to block generation & handle board background 'border sprite'
+    private void ValidateBoard()
+    {
+        width = Mathf.Clamp(width, 4, 12);
+        height = Mathf.Clamp(height, 4, 12);
+
+        if (boardRenderer != null)
+        {
+            boardRenderer.size = new Vector2(width + 0.2f, height + 0.4f);
+            float yPosition = (height % 2 == 0) ? -0.5f : -1f;
+            // Adjust background position to center it with the board
+            boardRenderer.transform.position = new Vector2(0, yPosition);
+        }
+    }
+
+    //sync camera to board
+    private void CenterCamera()
+    {
+        Camera.main.transform.position = new Vector3(0, 0, -30);
+        float ortSize = Mathf.Max(height, width);
+        // normalize
+        float zoomFactor = Mathf.Lerp(1.13f, 1.1f, (ortSize - 4) / 8f);
+        Camera.main.orthographicSize = ortSize * zoomFactor;
+    }
     #endregion
 
     #region Clear board
@@ -147,33 +172,6 @@ public class BoardManager : MonoBehaviour
     }
     #endregion
 
-    #region Set limit to block generation & handle board background 'border sprite'
-    private void ValidateBoard()
-    {
-        width = Mathf.Clamp(width, 4, 12);
-        height = Mathf.Clamp(height, 4, 12);
-
-        if (boardRenderer != null)
-        {
-            boardRenderer.size = new Vector2(width + 0.2f, height + 0.4f);
-            float yPosition = (height % 2 == 0) ? -0.5f : -1f;
-            // Adjust background position to center it with the board
-            boardRenderer.transform.position = new Vector2(0, yPosition);
-        }
-    }
-    #endregion
-
-    #region Sync camera to board
-    private void CenterCamera()
-    {
-        Camera.main.transform.position = new Vector3(0, 0, -30);
-        float ortSize = Mathf.Max(height, width);
-        // normalize
-        float zoomFactor = Mathf.Lerp(1.13f, 1.1f, (ortSize - 4) / 8f);
-        Camera.main.orthographicSize = ortSize * zoomFactor;
-    }
-    #endregion
-
     #region Board Generation
     public void GenerateBlocks()
     {
@@ -184,16 +182,15 @@ public class BoardManager : MonoBehaviour
 
         LevelData currentLevel = LevelManager.Instance.GetLevel(LevelManager.Instance.GetCurrentLevelNumber());
 
-        // Reset counters for ducks and balloons
-        maxDucksAllowed = currentLevel.duck;
+        // counters for ducks and balloons
+        maxDucksAllowed = currentLevel.duck + 1;
         currentDuckCount = 0;
-        maxBalloonAllowed = currentLevel.balloon;
+        maxBalloonAllowed = currentLevel.balloon + 1;
         currentBalloonCount = 0;
 
-        // ---- NEW: Check if manual board generation is allowed
+        //if manual board generation is allowed from level data
         if (currentLevel.allowManualBoardGeneration && currentLevel.boardBlocks != null)
         {
-            // 1) Initialize entire board to null
             for (int y = 0; y < height; y++)
             {
                 for (int x = 0; x < width; x++)
@@ -202,21 +199,16 @@ public class BoardManager : MonoBehaviour
                 }
             }
 
-            // 2) Place blocks for each coordinate specified in boardBlocks
             foreach (BoardBlock bb in currentLevel.boardBlocks)
             {
-                // Safety checks
+                //if manuel blocks are out of board skip them
                 if (bb.x < 0 || bb.x >= width || bb.y < 0 || bb.y >= height)
                 {
-                    Debug.LogWarning($"Skipping invalid board coordinate ({bb.x}, {bb.y})");
                     continue;
                 }
 
-                // Convert string blockType to your actual BlockType enum
                 BlockType bt = GameManager.Instance.ParseBlockType(bb.blockType);
 
-                // Find the corresponding prefab (assuming your 'blockPrefabs' array 
-                // is ordered by block type or you have a helper method to map block type to prefab).
                 GameObject prefabToSpawn = GetPrefabForBlockType(bt);
 
                 if (prefabToSpawn == null)
@@ -225,34 +217,25 @@ public class BoardManager : MonoBehaviour
                     continue;
                 }
 
-                // Instantiate at correct position
+                //instantiate manuel block
                 Vector2 position = new Vector2(bb.x - spacingX, bb.y - spacingY);
                 GameObject blockObj = Instantiate(prefabToSpawn, position, Quaternion.identity);
 
-                // Adjust z-position (duck/balloon slightly forward)
                 float zPosition = (bt == BlockType.Duck || bt == BlockType.Balloon) ? -2f : -(float)bb.y / height;
                 blockObj.transform.position = new Vector3(position.x, position.y, zPosition);
 
-                // Set up the Block's indices
                 Block block = blockObj.GetComponent<Block>();
                 block.SetIndicies(bb.x, bb.y);
 
-                // Keep track of the newly created block
                 blockBoard[bb.x, bb.y] = new Node(blockObj);
-
-                // Update counters if needed
-                if (bt == BlockType.Duck) currentDuckCount++;
-                if (bt == BlockType.Balloon) currentBalloonCount++;
             }
 
-            // Optionally, fill in the rest with random blocks if desired:
-            FillEmptySpacesWithRandomBlocks(); // see snippet below if you want partial random
-
+            // below can be commented out if only need manuel blocks
+            FillEmptySpacesWithRandomBlocks();
         }
+        //manuel generation is not used allowManualBoardGeneration == false
         else
         {
-            // ---- If manual generation is NOT allowed or boardBlocks is null, do your existing random approach:
-
             for (int y = 0; y < height; y++)
             {
                 for (int x = 0; x < width; x++)
@@ -261,14 +244,13 @@ public class BoardManager : MonoBehaviour
 
                     int randomIndex;
 
-                    // 🚀 Ensure bottom row (y == 0) does not have Duck
+                    //no duck generation at bottom
                     do
                     {
                         randomIndex = GetValidRandomPrefabIndex();
                     } 
                     while (y == 0 && blockPrefabs[randomIndex].GetComponent<Block>().blockType == BlockType.Duck);
 
-                    // ✅ Now safe to instantiate
                     GameObject blockObj = Instantiate(blockPrefabs[randomIndex], position, Quaternion.identity);
                     
                     Block block = blockObj.GetComponent<Block>();
@@ -286,13 +268,12 @@ public class BoardManager : MonoBehaviour
 
     private GameObject GetPrefabForBlockType(BlockType blockType)
     {
-        // 🚀 Handle Rockets Separately
+        //since rocketblock is not in blockPrefabs, get them separately
         if (blockType == BlockType.Rocket)
         {
             return rocketBlockPrefab;
         }
 
-        // 🎨 Handle Normal Blocks Using blockPrefabs[]
         int index = (int)blockType;
         if (index < 0 || index >= blockPrefabs.Length)
         {
@@ -303,35 +284,32 @@ public class BoardManager : MonoBehaviour
         return blockPrefabs[index];
     }
 
-
     private int GetValidRandomPrefabIndex()
     {
         int randomIndex;
         BlockType blockType;
 
+        //checking allowed duck and ballon counts
         do
         {
             randomIndex = Random.Range(0, blockPrefabs.Length);
             blockType = blockPrefabs[randomIndex].GetComponent<Block>().blockType;
 
-            // 🚀 If Duck limit is reached, ignore Ducks but allow other blocks
             if (blockType == BlockType.Duck && currentDuckCount >= maxDucksAllowed)
             {
                 continue;
             }
 
-            // 🎈 If Balloon limit is reached, ignore Balloons but allow other blocks
             if (blockType == BlockType.Balloon && currentBalloonCount >= maxBalloonAllowed)
             {
                 continue;
             }
 
-            // ✅ Found a valid block
             break;
 
-        } while (true); // Keeps looping until a valid block is found
+        } while (true);
 
-        // If Duck or Balloon is selected, update counts
+        //if duck or ballonn is selected, update counts
         if (blockType == BlockType.Duck) currentDuckCount++;
         if (blockType == BlockType.Balloon) currentBalloonCount++;
 
@@ -350,14 +328,13 @@ public class BoardManager : MonoBehaviour
 
                     int randomIndex;
 
-                    // 🚀 Ensure bottom row (y == 0) does not have Duck
+                    //no duck generation at bottom
                     do
                     {
                         randomIndex = GetValidRandomPrefabIndex();
                     } 
                     while (y == 0 && blockPrefabs[randomIndex].GetComponent<Block>().blockType == BlockType.Duck);
 
-                    // ✅ Now safe to instantiate
                     GameObject blockObj = Instantiate(blockPrefabs[randomIndex], position, Quaternion.identity);
 
                     Block block = blockObj.GetComponent<Block>();
@@ -485,28 +462,6 @@ public class BoardManager : MonoBehaviour
 
         StartCoroutine(FallExistingBlocks());
     }
-    #endregion
-
-    #region Remove duck block
-    private void RemoveDuckBlock(Block duckBlock)
-    {
-        if (duckBlock == null) return;
-
-        // Update ui goals for a single block
-        List<Block> singleDuck = new List<Block> { duckBlock };
-
-        Debug.Log(duckBlock.blockType);
-
-        // Remove from board
-        RemoveBlocks(singleDuck);
-
-        // Check if that completes all goals
-        if (UIManager.Instance.CheckAllGoalsCompleted())
-        {
-            GameManager.Instance.LevelCompletePanelShowing();
-        }
-    }
-    #endregion
 
     private List<Block> GetAdjacentBalloons(Block block)
     {
@@ -557,6 +512,28 @@ public class BoardManager : MonoBehaviour
 
         return balloonsToRemove;
     }
+    #endregion
+
+    #region Remove duck block
+    private void RemoveDuckBlock(Block duckBlock)
+    {
+        if (duckBlock == null) return;
+
+        // Update ui goals for a single block
+        List<Block> singleDuck = new List<Block> { duckBlock };
+
+        Debug.Log(duckBlock.blockType);
+
+        // Remove from board
+        RemoveBlocks(singleDuck);
+
+        // Check if that completes all goals
+        if (UIManager.Instance.CheckAllGoalsCompleted())
+        {
+            GameManager.Instance.LevelCompletePanelShowing();
+        }
+    }
+    #endregion
 
     #region Fall Implementation for existing blocks
     public IEnumerator FallExistingBlocks()
@@ -650,9 +627,10 @@ public class BoardManager : MonoBehaviour
                     GameObject blockObj = Instantiate(blockPrefabs[randomIndex]);
                     blockObj.transform.SetParent(this.transform);
 
+                    // prevent overlapping
                     float zPosition = (blockComponent.blockType == BlockType.Balloon || blockComponent.blockType == BlockType.Duck)
-                        ? -2f  // Set them forward in Z-space
-                        : -(float)y / height;  // Default for other block
+                        ? -2f
+                        : -(float)y / height;
                     float spawnY = height + 1;
                     float finalY = y - spacingY;
 

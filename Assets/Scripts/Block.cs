@@ -20,7 +20,7 @@ public class Block : MonoBehaviour
     public int yIndex;
     public bool isFalling = false;
 
-    // True if vertical rocket, false if horizontal rocket
+    //true if vertical rocket, false if horizontal rocket
     private bool isVerticalRocket = false;
 
     public Block(int _x, int _y)
@@ -86,7 +86,7 @@ public class Block : MonoBehaviour
             BoardManager.Instance.SpawnRocket(transform.position, Vector2.right);
         }
 
-        // Remove rocket block from the board and destroy
+        //remove rocket block from the board and destroy
         BoardManager.Instance.blockBoard[xIndex, yIndex] = null;
         Destroy(gameObject);
     }
@@ -95,14 +95,14 @@ public class Block : MonoBehaviour
     {
         Vector3 initialPosition = transform.position;
 
-        // Hide the clicked rocket visually
+        //hide clicked rocket visually
         SpriteRenderer rocketRenderer = GetComponent<SpriteRenderer>();
         if (rocketRenderer != null)
         {
             rocketRenderer.enabled = false;
         }
 
-        // Create a new big rocket at the clicked position
+        //create a new big rocket at the clicked position
         GameObject bigRocket = Instantiate(gameObject, initialPosition, Quaternion.identity);
         bigRocket.transform.localScale = transform.localScale * 2;
         bigRocket.transform.SetParent(BoardManager.Instance.transform);
@@ -126,11 +126,11 @@ public class Block : MonoBehaviour
             bigRocket.transform.position += new Vector3(0, 0, -1);
         }
 
-        // Get connected rockets, excluding this one
+        //get connected rockets, excluding this one
         var neighbors = BoardManager.Instance.GetConnectedBlocks(this)
                         .FindAll(block => block != this);
 
-        // Hide neighbor rockets visually instead of removing them
+        //hide neighbor rockets visually instead of removing them
         foreach (Block neighbor in neighbors)
         {
             if (neighbor != null && neighbor.blockType == BlockType.Rocket)
@@ -138,23 +138,23 @@ public class Block : MonoBehaviour
                 SpriteRenderer neighborRenderer = neighbor.GetComponent<SpriteRenderer>();
                 if (neighborRenderer != null)
                 {
-                    neighborRenderer.enabled = false; // Hide neighbor rocket
+                    neighborRenderer.enabled = false; // hide neighbor rocket
                 }
             }
         }
 
-        // Blinking effect (big rocket blinks 3 times)
+        //big rocket tanimation
         for (int i = 0; i < 3; i++)
         {
             if (bigRocketRenderer != null)
             {
-                bigRocketRenderer.enabled = false; // Hide
+                bigRocketRenderer.enabled = false;
             }
             yield return new WaitForSeconds(0.1f);
 
             if (bigRocketRenderer != null)
             {
-                bigRocketRenderer.enabled = true; // Show
+                bigRocketRenderer.enabled = true; //
             }
             yield return new WaitForSeconds(0.1f);
         }
@@ -162,7 +162,7 @@ public class Block : MonoBehaviour
         yield return new WaitForSeconds(0.2f);
         Destroy(bigRocket);
 
-        // Spawn 4 directional rockets at the stored initial position
+        // both vertical and horizontal rockets
         BoardManager.Instance.SpawnRocket(initialPosition, Vector2.up);
         BoardManager.Instance.SpawnRocket(initialPosition, Vector2.down);
         BoardManager.Instance.SpawnRocket(initialPosition, Vector2.left);

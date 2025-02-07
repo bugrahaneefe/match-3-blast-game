@@ -18,6 +18,26 @@
               "blockType": "Green"
        },
        {
+              "x": 1,
+              "y": 0,
+              "blockType": "Green"
+       },
+       {
+              "x": 2,
+              "y": 0,
+              "blockType": "Green"
+       },
+       {
+              "x": 3,
+              "y": 0,
+              "blockType": "red"
+       },
+       {
+              "x": 4,
+              "y": 0,
+              "blockType": "red"
+       },
+       {
               "x": 0,
               "y": 4,
               "blockType": "red"

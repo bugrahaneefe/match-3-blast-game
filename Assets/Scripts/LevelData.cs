@@ -22,8 +22,6 @@ public class LevelData
     public int blue;
     public int duck;
     public int balloon;
-
-    // New fields:
     public bool allowManualBoardGeneration;
     public BoardBlock[] boardBlocks;
 }
